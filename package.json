@@ -1,5 +1,5 @@
 {
-  "name": "SOLTix",
+  "name": "soltix",
   "scripts": {
     "anchor-build": "cd anchor && anchor build",
     "anchor-test": "cd anchor && anchor test --skip-deploy",
