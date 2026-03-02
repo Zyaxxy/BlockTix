@@ -2,60 +2,64 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
+import {
+  useDynamicContext,
+  useIsLoggedIn,
+} from "@dynamic-labs/sdk-react-core";
 import { supabase } from "@/lib/supabase";
 
-// Ensure only wallets with role 'user' can access this page
-
 export default function UserDashboard() {
-  const { user, handleLogOut } = useDynamicContext();
+  const { user, primaryWallet, handleLogOut } = useDynamicContext();
+  const isLoggedIn = useIsLoggedIn();
   const router = useRouter();
 
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    // Give Dynamic a short moment to initialize the `user` value
-    if (!user) {
-      timer = setTimeout(() => {
-        if (!user) router.push("/login/user");
-      }, 600);
-      return () => timer && clearTimeout(timer);
-    }
-
-    const walletAddress = user?.verifiedCredentials?.[0]?.address;
-    if (!walletAddress) {
+    // 🔹 Step 1: Wait for authentication
+    if (!isLoggedIn) {
       router.push("/login/user");
       return;
     }
 
+    if (!primaryWallet) return;
+
     const checkRole = async () => {
-      const { data } = await supabase
+      const walletAddress = primaryWallet.address.toLowerCase();
+
+      const { data, error } = await supabase
         .from("users")
         .select("role")
         .eq("wallet_address", walletAddress)
         .single();
 
-      if (!data) {
-        await supabase.from("users").insert([
-          { wallet_address: walletAddress, role: "user" },
-        ]);
+      if (error) {
+        console.error("Role check error:", error);
         return;
       }
 
+      // First-time user → auto-create
+      if (!data) {
+        await supabase.from("users").insert({
+          wallet_address: walletAddress,
+          role: "user",
+        });
+        return;
+      }
+
+      // Wrong role → logout
       if (data.role !== "user") {
-        alert("Access denied: this wallet is not a user");
-        if (handleLogOut) await handleLogOut();
+        alert("Access denied: this wallet is not registered as user.");
+        await handleLogOut();
         router.push("/login/user");
       }
     };
 
     checkRole();
-  }, [user, router]);
+  }, [isLoggedIn, primaryWallet, router, handleLogOut]);
 
-  if (!user) return null;
+  if (!isLoggedIn || !user) return null;
 
   const onLogout = async () => {
-    if (handleLogOut) await handleLogOut();
+    await handleLogOut();
     router.push("/");
   };
 
