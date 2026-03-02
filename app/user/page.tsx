@@ -1,66 +1,58 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  useDynamicContext,
-  useIsLoggedIn,
-} from "@dynamic-labs/sdk-react-core";
+import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
 import { supabase } from "@/lib/supabase";
 
 export default function UserDashboard() {
-  const { user, primaryWallet, handleLogOut } = useDynamicContext();
+  const { user, handleLogOut } = useDynamicContext();
   const isLoggedIn = useIsLoggedIn();
   const router = useRouter();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    // 🔹 Step 1: Wait for authentication
-    if (!isLoggedIn) {
-      router.push("/login/user");
-      return;
-    }
+    if (!isLoggedIn || !user) return;
 
-    if (!primaryWallet) return;
+    const uid = user.userId;
 
     const checkRole = async () => {
-      const walletAddress = primaryWallet.address.toLowerCase();
+      try {
+        const { data } = await supabase
+          .from("users")
+          .select("role")
+          .eq("uid", uid)
+          .single();
 
-      const { data, error } = await supabase
-        .from("users")
-        .select("role")
-        .eq("wallet_address", walletAddress)
-        .single();
+        if (!data) {
+          const { data, error } = await supabase.from("users").insert({ uid, role: "user" });
 
-      if (error) {
-        console.error("Role check error:", error);
-        return;
-      }
+if (error) {
+  console.error("Supabase insert failed:", error);
+} else {
+  console.log("Inserted successfully:", data);
+}
+        } else if (data.role !== "user") {
+          alert("Access denied: not a user");
+          await handleLogOut?.();
+          router.replace("/login/user");
+          return;
+        }
 
-      // First-time user → auto-create
-      if (!data) {
-        await supabase.from("users").insert({
-          wallet_address: walletAddress,
-          role: "user",
-        });
-        return;
-      }
-
-      // Wrong role → logout
-      if (data.role !== "user") {
-        alert("Access denied: this wallet is not registered as user.");
-        await handleLogOut();
-        router.push("/login/user");
+        setReady(true);
+      } catch {
+        router.replace("/login/user");
       }
     };
 
     checkRole();
-  }, [isLoggedIn, primaryWallet, router, handleLogOut]);
+  }, [isLoggedIn, user, handleLogOut, router]);
 
-  if (!isLoggedIn || !user) return null;
+  if (!ready) return null;
 
   const onLogout = async () => {
-    await handleLogOut();
-    router.push("/");
+    await handleLogOut?.();
+    router.push("/login");
   };
 
   return (
@@ -68,14 +60,10 @@ export default function UserDashboard() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl">User Dashboard</h1>
-          <button
-            onClick={onLogout}
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
-          >
+          <button onClick={onLogout} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded">
             Logout
           </button>
         </div>
-
         <div>Welcome — user content goes here.</div>
       </div>
     </div>

@@ -1,22 +1,3 @@
-// "use client";
-
-// import { DynamicWidget } from "@dynamic-labs/sdk-react-core";
-
-// export default function LoginPage() {
-//   return (
-//     <div className="h-screen flex items-center justify-center bg-black text-white">
-//       <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-10 shadow-2xl text-center">
-//         <h1 className="text-2xl font-semibold mb-6">
-//           Login to Block-Tix
-//         </h1>
-
-//         <DynamicWidget />
-
-//       </div>
-//     </div>
-//   );
-// }
-
 "use client";
 
 import Link from "next/link";
@@ -42,4 +23,3 @@ export default function LoginSelection() {
     </div>
   );
 }
-
