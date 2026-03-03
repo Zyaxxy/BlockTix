@@ -93,6 +93,9 @@ importers:
       '@types/three':
         specifier: ^0.183.1
         version: 0.183.1
+      baseline-browser-mapping:
+        specifier: ^2.10.0
+        version: 2.10.0
       codama:
         specifier: ^1.5.0
         version: 1.5.1
