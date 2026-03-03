@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
-import  {Providers}  from "./components/providers";
+import { Providers } from "./components/providers";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -15,33 +15,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Solana dApp Starter",
-  description: "A minimal Next.js starter powered by @solana/react-hooks",
+  title: "SOLTix",
+  description: "",
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",
     apple: "/icon.svg",
   },
 };
-
-// export default function RootLayout({
-//   children,
-// }: Readonly<{
-//   children: React.ReactNode;
-// }>) {
-//   return (
-//     <html lang="en">
-//       <Providers>
-//         <body
-//           suppressHydrationWarning
-//           className={`${inter.variable} ${geistMono.variable} antialiased`}
-//         >
-//           {children}
-//         </body>
-//       </Providers>
-//     </html>
-//   );
-// }
 
 export default function RootLayout({
   children,
