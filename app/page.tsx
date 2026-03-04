@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import Ballpit from "./components/Ballpit";
-import HeroContent from "./components/ui/HeroContent";
+import Ballpit from "./components/ui/landing/Ballpit";
+import HeroContent from "./components/ui/landing/HeroContent";
+import BackgroundShader from "./components/ui/landing/BackgroundShader";
 
 export default function Home() {
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-black text-white">
+
+      <BackgroundShader />
 
       <Ballpit
         count={100}
