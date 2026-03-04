@@ -20,7 +20,7 @@ export default function Home() {
         colors={["#3c0fa3", "#00eb85"]}
       />
 
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+      <div className="absolute inset-0 z-20 flex items-center justify-center">
         <HeroContent />
       </div>
     </div>
