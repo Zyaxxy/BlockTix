@@ -1,24 +1,52 @@
 "use client";
 
-import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { DynamicWidget, useDynamicContext } from "@dynamic-labs/sdk-react-core";
 
-export default function LoginSelection() {
+export default function LoginPage() {
+  const { user } = useDynamicContext();
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkUser = async () => {
+      if (!user) return;
+
+      console.log("Dynamic user:", user);
+
+      const uid = user.userId;
+      const email = user.email;
+
+      if (!uid || !email) {
+        console.log("Waiting for full user data...");
+        return;
+      }
+
+      const res = await fetch("/api/check-user", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ uid }),
+      });
+
+      const data = await res.json();
+
+      if (data.exists) {
+        router.push("/home");
+      } else {
+        router.push("/onboarding");
+      }
+    };
+
+    checkUser();
+  }, [user, router]);
+
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center gap-10">
-      <h1 className="text-4xl font-bold">Login as</h1>
-
-      <div className="flex gap-8">
-        <Link href="/login/user">
-          <button className="px-8 py-4 bg-green-600 rounded-xl text-lg">
-            User
-          </button>
-        </Link>
-
-        <Link href="/login/organizer">
-          <button className="px-8 py-4 bg-purple-600 rounded-xl text-lg">
-            Organizer
-          </button>
-        </Link>
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
+      <div className="bg-zinc-900 p-8 rounded-xl text-center">
+        <h1 className="text-2xl mb-4">Login to Block-Tix</h1>
+        <DynamicWidget />
       </div>
     </div>
   );
