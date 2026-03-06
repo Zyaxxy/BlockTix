@@ -24,25 +24,6 @@ export const metadata: Metadata = {
   },
 };
 
-// export default function RootLayout({
-//   children,
-// }: Readonly<{
-//   children: React.ReactNode;
-// }>) {
-//   return (
-//     <html lang="en">
-//       <Providers>
-//         <body
-//           suppressHydrationWarning
-//           className={`${inter.variable} ${geistMono.variable} antialiased`}
-//         >
-//           {children}
-//         </body>
-//       </Providers>
-//     </html>
-//   );
-// }
-
 export default function RootLayout({
   children,
 }: {

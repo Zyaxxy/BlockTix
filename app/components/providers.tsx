@@ -1,4 +1,5 @@
 "use client"; 
+
 // import { SolanaProvider } 
 // from "@solana/react-hooks"; import { PropsWithChildren } 
 // from "react"; import { autoDiscover, createClient } 
@@ -9,20 +10,6 @@
 //    return <SolanaProvider client={client}>{children}</SolanaProvider>;
    
 //   }
-  
-// import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
-
-// export function Providers({ children }: { children: React.ReactNode }) {
-//   return (
-//     <DynamicContextProvider
-//       settings={{
-//         environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENV_ID!,
-//       }}
-//     >
-//       {children}
-//     </DynamicContextProvider>
-//   );
-// }
 
 import {
   DynamicContextProvider,
@@ -37,19 +24,9 @@ type ProvidersProps = {
   children: ReactNode;
 };
 
-
-// export default function Providers({ children }: ProvidersProps)  {
-//   return (
-//     <DynamicContextProvider
-//       settings={{
-//         environmentId: "VAL",
-//         walletConnectors: [SolanaWalletConnectors],
-//       }}
-//     >
-//       <DynamicWidget />
-//     </DynamicContextProvider>
-//   );
-// }
+const connectors = [
+  SolanaWalletConnectors,
+];
 
 
 export function Providers({ children }: ProvidersProps) {
@@ -57,9 +34,10 @@ export function Providers({ children }: ProvidersProps) {
     <DynamicContextProvider
       settings={{
         environmentId: process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID!,
-        walletConnectors: [SolanaWalletConnectors],
+        walletConnectors: connectors,
       }}
     >
+        <DynamicWidget />
       {children}
     </DynamicContextProvider>
   );
