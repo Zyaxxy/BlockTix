@@ -14,14 +14,14 @@ export default function Home() {
       <BackgroundShader />
       <Header />
 
-      <Ballpit
+      {/* <Ballpit
         count={100}
         gravity={0.05}
         friction={0.9975}
         wallBounce={0.95}
         followCursor={false}
         colors={["#3c0fa3", "#00eb85"]}
-      />
+      /> */}
 
       <div className="absolute inset-0 z-20 flex items-center justify-center">
         <HeroContent />

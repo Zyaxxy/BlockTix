@@ -2,8 +2,18 @@
 
 import { motion } from "motion/react";
 import BreathingTicket from "./BreathingTicket";
+import link from "next/link";
+import { useRouter } from "next/navigation";
+
+
+
 
 export default function HeroContent() {
+        const router = useRouter();
+        const handleClick = () => {
+        console.log('Navigating to posts...');
+    router.push('/login');
+    };
     return (
         <main className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-center px-8">
             {/* Left — Text Column */}
@@ -45,9 +55,11 @@ export default function HeroContent() {
                     <button className="px-10 py-4 rounded-full bg-transparent border border-white/30 text-white font-medium text-sm transition-all duration-200 hover:bg-white/10 hover:border-white/50 cursor-pointer">
                         Know More
                     </button>
-                    <button className="px-10 py-4 rounded-full bg-white text-black font-medium text-sm transition-all duration-200 hover:bg-white/90 cursor-pointer">
+                      
+                    <button onClick={handleClick} className="px-10 py-4 rounded-full bg-white text-black font-medium text-sm transition-all duration-200 hover:bg-white/90 cursor-pointer">
                         Get Started
                     </button>
+                    
                 </div>
             </motion.div>
 
