@@ -53,6 +53,12 @@ importers:
       next:
         specifier: 16.0.10
         version: 16.0.10(@babel/core@7.29.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      pino:
+        specifier: ^7.11.0
+        version: 7.11.0
+      pino-pretty:
+        specifier: ^10.3.1
+        version: 10.3.1
       radix-ui:
         specifier: ^1.4.3
         version: 1.4.3(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -65,6 +71,9 @@ importers:
       tailwind-merge:
         specifier: ^3.5.0
         version: 3.5.0
+      thread-stream:
+        specifier: ^0.15.2
+        version: 0.15.2
       three:
         specifier: ^0.167.1
         version: 0.167.1

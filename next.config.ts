@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["ws"],
+  serverExternalPackages: ["ws", 'pino', 'pino-pretty', 'thread-stream'],
 };
 
 export default nextConfig;
