@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
+import { 
+  useDynamicContext, 
+  DynamicWidget 
+} from "@dynamic-labs/sdk-react-core"; // Added DynamicWidget
 import { supabase } from "@/lib/supabase/client";
 
 export default function HomePage() {
@@ -13,11 +16,18 @@ export default function HomePage() {
   const [firstName, setFirstName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+// 🔹 Stable Logout Redirect
+useEffect(() => {
+  // We only redirect if loading is finished AND there is no user
+  if (!loading && !user) {
+    router.push("/login");
+  }
+}, [user, loading, router]); // These 3 must always be here
+
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
 
-      // 🔹 1. Try fetching first name safely
       try {
         const { data, error } = await supabase
           .from("users")
@@ -32,12 +42,9 @@ export default function HomePage() {
         console.error("Client first name fetch failed:", err);
       }
 
-      // 🔹 2. Fetch events (still using your API route)
       const res = await fetch("/api/get-user-events", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ uid: user.userId }),
       });
 
@@ -66,12 +73,20 @@ export default function HomePage() {
             : ""}
         </h1>
 
-        <button
-          onClick={() => router.push("/home/create-event")}
-          className="px-5 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-emerald-500 hover:opacity-90 transition"
-        >
-          + Create Event
-        </button>
+        {/* 🔹 Grouping Button and Widget */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.push("/home/create-event")}
+            className="px-5 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-emerald-500 hover:opacity-90 transition font-medium"
+          >
+            + Create Event
+          </button>
+          
+          {/* 🔹 Dynamic Wallet Widget */}
+          <div className="dynamic-widget-wrapper">
+            <DynamicWidget />
+          </div>
+        </div>
       </div>
 
       {/* Center Tabs */}

@@ -37,7 +37,6 @@ export function Providers({ children }: ProvidersProps) {
         walletConnectors: connectors,
       }}
     >
-        <DynamicWidget />
       {children}
     </DynamicContextProvider>
   );
