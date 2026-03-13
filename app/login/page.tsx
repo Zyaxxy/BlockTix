@@ -5,20 +5,17 @@ import { useRouter } from "next/navigation";
 import { DynamicWidget, useDynamicContext } from "@dynamic-labs/sdk-react-core";
 
 export default function LoginPage() {
-  const { user } = useDynamicContext();
+  const { user, primaryWallet } = useDynamicContext();
   const router = useRouter();
 
   useEffect(() => {
     const checkUser = async () => {
-      if (!user) return;
+      if (!user || !primaryWallet) return;
 
-      console.log("Dynamic user:", user);
+      const walletAddress = primaryWallet.address;
 
-      const uid = user.userId;
-      const email = user.email;
-
-      if (!uid || !email) {
-        console.log("Waiting for full user data...");
+      if (!walletAddress) {
+        console.log("Waiting for wallet...");
         return;
       }
 
@@ -27,7 +24,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ uid }),
+        body: JSON.stringify({ walletAddress }),
       });
 
       const data = await res.json();
@@ -40,7 +37,7 @@ export default function LoginPage() {
     };
 
     checkUser();
-  }, [user, router]);
+  }, [user, primaryWallet, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-black text-white">

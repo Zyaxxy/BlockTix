@@ -16,23 +16,30 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    if (!user) return;
+    // 1. Get the actual wallet address
+    const walletAddress = user?.verifiedCredentials?.[0]?.address;
+
+    if (!user || !walletAddress) {
+      alert("User or wallet not found. Please reconnect.");
+      return;
+    }
 
     if (!firstName || !lastName) {
-      alert("Please fill your name");
+      alert("Please fill in your name");
       return;
     }
 
     setLoading(true);
 
+    // 2. Send the clean payload matching your DB schema
     const res = await fetch("/api/onboard-user", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        uid: user.userId,
-        email: user.email,
+        wallet_address: walletAddress, // Match the API route expectation
+        email: user.email || "", 
         firstName,
         lastName,
         interests,
@@ -46,10 +53,12 @@ export default function OnboardingPage() {
     if (res.ok) {
       router.push("/home");
     } else {
-      alert("Something went wrong.");
+      const errorData = await res.json();
+      alert("Something went wrong: " + (errorData.error || "Unknown error"));
     }
   };
 
+  // ... rest of your JSX remains the same
   return (
     <div className="min-h-screen bg-black flex items-center justify-center px-4 text-white">
       <div className="w-full max-w-md bg-zinc-900 p-8 rounded-2xl shadow-xl">

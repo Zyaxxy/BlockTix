@@ -3,20 +3,20 @@ import { supabase } from "@/lib/supabase/server";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { uid } = body;
+    const { walletAddress } = await req.json();
 
-    if (!uid) {
+    if (!walletAddress) {
       return NextResponse.json(
-        { error: "UID missing" },
+        { error: "Wallet address is missing" },
         { status: 400 }
       );
     }
 
+    // Check if a user exists with this specific wallet_address
     const { data, error } = await supabase
       .from("users")
-      .select("uid")
-      .eq("uid", uid)
+      .select("wallet_address")
+      .eq("wallet_address", walletAddress)
       .maybeSingle();
 
     if (error) {
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({
-      exists: !!data,
+      exists: !!data, // Returns true if user exists, false otherwise
     });
   } catch (err: any) {
     console.error("Route crashed:", err);
