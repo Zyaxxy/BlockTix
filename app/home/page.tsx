@@ -2,11 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  useDynamicContext,
-  DynamicWidget
-} from "@dynamic-labs/sdk-react-core";
+import { useDynamicContext, DynamicWidget } from "@dynamic-labs/sdk-react-core";
+import { isSolanaWallet } from "@dynamic-labs/solana";
 import { supabase } from "@/lib/supabase/client";
+
+import {
+  Connection,
+  PublicKey,
+  SystemProgram,
+  TransactionMessage,
+  VersionedTransaction,
+} from "@solana/web3.js";
+
 type Event = {
   id: string;
   name: string;
@@ -16,7 +23,9 @@ type Event = {
   total_tickets: number;
   ticket_price: number;
   metadata_uri: string;
+  collection_address: string;
   image?: string;
+  organizer_wallet: string;
 };
 
 export default function HomePage() {
@@ -26,183 +35,170 @@ export default function HomePage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [firstName, setFirstName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [buyingEvent, setBuyingEvent] = useState<string | null>(null);
 
-  // 🔹 Stable Logout Redirect
-  // 1. Redirect if no user
+  // Redirect if user not logged in
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
-    }
+    if (!loading && !user) router.push("/login");
   }, [user, loading, router]);
 
-  // 2. Fetch User Data & Events using Wallet Address
+  // Fetch user + events
   useEffect(() => {
     const fetchData = async () => {
-      // Safely extract the wallet address
       const wallet_address = user?.verifiedCredentials?.[0]?.address;
-
       if (!wallet_address) return;
 
-      setLoading(true);
-
       try {
-        // Fetch First Name
-        const { data: userData } = await supabase
+        const { data } = await supabase
           .from("users")
           .select("first_name")
-          .eq("wallet_address", wallet_address) // Changed from 'uid'
+          .eq("wallet_address", wallet_address)
           .maybeSingle();
 
-        if (userData?.first_name) {
-          setFirstName(userData.first_name);
-        }
+        if (data?.first_name) setFirstName(data.first_name);
 
-        // Fetch Events
         const res = await fetch("/api/get-user-events", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ wallet_address }), // Changed from 'uid'
+          body: JSON.stringify({ wallet_address }),
         });
 
         if (res.ok) {
-          const data = await res.json();
-          // setEvents(data.events || []);
-          const eventsWithImages = await Promise.all(
-  (data.events || []).map(async (event: any) => {
-    try {
-      if (!event.metadata_uri) return event;
-
-      const res = await fetch(event.metadata_uri);
-      const metadata = await res.json();
-
-      return {
-        ...event,
-        image: metadata.image,
-      };
-    } catch {
-      return event;
-    }
-  })
-);
-
-setEvents(eventsWithImages);
+          const json = await res.json();
+          setEvents(json.events || []);
         }
       } catch (err) {
-        console.error("Fetch failed:", err);
-      } finally {
-        setLoading(false);
+        console.error(err);
       }
+
+      setLoading(false);
     };
 
     fetchData();
   }, [user]);
- return (
-  <div className="min-h-screen bg-black text-white px-8 py-6">
 
-    {/* Top Bar */}
-    <div className="flex justify-between items-center mb-10">
-      <h1 className="text-xl font-semibold">
-        Welcome
-        {firstName
-          ? `, ${firstName}`
-          : user?.email
-          ? `, ${user.email}`
-          : ""}
-      </h1>
+  // BUY TICKET
+  const handleBuyTicket = async (eventItem: Event) => {
+    if (!primaryWallet || !isSolanaWallet(primaryWallet)) {
+      alert("Please connect a Solana wallet.");
+      return;
+    }
 
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => router.push("/home/create-event")}
-          className="px-5 py-2 rounded-lg bg-gradient-to-r from-indigo-600 to-emerald-500 hover:opacity-90 transition font-medium"
-        >
-          + Create Event
-        </button>
+    const confirmBuy = confirm(
+      `Buy ticket for ${eventItem.name} for ${eventItem.ticket_price} SOL?`
+    );
 
-        <div className="dynamic-widget-wrapper">
+    if (!confirmBuy) return;
+
+    setBuyingEvent(eventItem.id);
+
+    try {
+      const connection = new Connection("https://api.devnet.solana.com");
+
+      const signer = await primaryWallet.getSigner();
+
+      const buyer = new PublicKey(primaryWallet.address);
+      const organizer = new PublicKey(eventItem.organizer_wallet);
+
+      const lamports = eventItem.ticket_price * 1_000_000_000;
+
+      const blockhash = await connection.getLatestBlockhash();
+
+      const instructions = [
+        SystemProgram.transfer({
+          fromPubkey: buyer,
+          toPubkey: organizer,
+          lamports,
+        }),
+      ];
+
+      const message = new TransactionMessage({
+        payerKey: buyer,
+        recentBlockhash: blockhash.blockhash,
+        instructions,
+      }).compileToV0Message();
+
+      const tx = new VersionedTransaction(message);
+
+      const result = await signer.signAndSendTransaction(tx);
+
+      console.log("Transaction:", result.signature);
+
+      await supabase.from("ticket_purchases").insert({
+        buyer_wallet: primaryWallet.address,
+        event_id: eventItem.id,
+        tx_signature: result.signature,
+        purchased_at: new Date().toISOString(),
+      });
+
+      alert("🎟 Ticket purchased successfully!");
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Purchase failed");
+    }
+
+    setBuyingEvent(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-black text-white px-8 py-6">
+      {/* Top Bar */}
+      <div className="flex justify-between mb-10">
+        <h1 className="text-xl">
+          Welcome {firstName ? firstName : user?.email || ""}
+        </h1>
+
+        <div className="flex gap-4">
+          <button
+            onClick={() => router.push("/home/create-event")}
+            className="px-4 py-2 bg-indigo-600 rounded"
+          >
+            + Create Event
+          </button>
+
           <DynamicWidget />
         </div>
       </div>
-    </div>
 
-    {/* Center Tabs */}
-    <div className="flex justify-center gap-6 mb-12">
-      <button className="px-6 py-2 rounded-lg bg-zinc-800">
-        Events
-      </button>
+      {/* Events */}
+      {loading ? (
+        <p>Loading events...</p>
+      ) : events.length === 0 ? (
+        <p>No events available</p>
+      ) : (
+        <div className="grid md:grid-cols-3 gap-6">
+          {events.map((event) => (
+            <div
+              key={event.id}
+              className="bg-zinc-900 border border-zinc-800 rounded-xl p-6"
+            >
+              <h2 className="text-xl font-bold">{event.name}</h2>
 
-      <button
-        onClick={() => router.push("/browse")}
-        className="px-6 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 transition"
-      >
-        Browse
-      </button>
-    </div>
-
-    {/* Events Section */}
-    {loading ? (
-      <p className="text-center text-zinc-400">Loading events...</p>
-    ) : events.length === 0 ? (
-      <div className="text-center mt-20">
-        <p className="text-zinc-400 mb-6">
-          You haven't created any events yet.
-        </p>
-        <button
-          onClick={() => router.push("/home/create-event")}
-          className="px-6 py-3 rounded-lg bg-gradient-to-r from-indigo-600 to-emerald-500"
-        >
-          Create Your First Event
-        </button>
-      </div>
-    ) : (
-      <div className="grid md:grid-cols-3 gap-6">
-        {events.map((event) => (
-          <div
-            key={event.id}
-            className="bg-zinc-900 rounded-xl border border-zinc-800 hover:border-indigo-500 transition-all duration-300 overflow-hidden"
-          >
-
-            {/* IMAGE */}
-            {event.image && (
-              <img
-                src={event.image}
-                alt={event.name}
-                className="w-full h-40 object-cover"
-              />
-            )}
-
-            {/* CONTENT */}
-            <div className="p-6">
-              <h2 className="text-xl font-bold mb-2">{event.name}</h2>
-
-              <p className="text-zinc-400 text-sm mb-4 line-clamp-2">
+              <p className="text-zinc-400 text-sm mt-2">
                 {event.description}
               </p>
 
-              <div className="space-y-1 text-xs text-zinc-300 border-t border-zinc-800 pt-4 mb-4">
-                <p>📍 {event.location || "No location set"}</p>
+              <div className="text-sm mt-4">
+                <p>📍 {event.location}</p>
                 <p>
-                  📅 {event.event_date
-                    ? new Date(event.event_date).toLocaleString()
-                    : "Date TBD"}
+                  📅 {new Date(event.event_date).toLocaleString()}
                 </p>
-                <p>
-                  🎟️ {event.total_tickets} Tickets • {event.ticket_price} SOL
-                </p>
+                <p>🎟 {event.ticket_price} SOL</p>
               </div>
 
-              {/* BUY BUTTON */}
               <button
-                className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition"
-                onClick={() => console.log("Buy ticket for:", event.id)}
+                onClick={() => handleBuyTicket(event)}
+                disabled={buyingEvent === event.id}
+                className="mt-4 w-full py-2 bg-indigo-600 rounded"
               >
-                Buy Ticket
+                {buyingEvent === event.id
+                  ? "PROCESSING..."
+                  : "Buy Ticket"}
               </button>
             </div>
-
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-);
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
