@@ -1,24 +1,40 @@
 import { NextResponse } from "next/server";
-import { Uploader } from "@irys/upload";
-import { Solana } from "@irys/upload-solana";
+import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
+import { irysUploader } from "@metaplex-foundation/umi-uploader-irys";
+import { createGenericFile, keypairIdentity } from "@metaplex-foundation/umi";
+import bs58 from "bs58";
+
+// 1. Initialize Umi for Server-Side
+const secretKey = bs58.decode(process.env.PRIVATE_KEY || "");
+const umi = createUmi("https://api.devnet.solana.com")
+  .use(irysUploader())
+  .use(keypairIdentity({
+    publicKey: { bytes: new Uint8Array(32) }, // Simplified keypair object
+    secretKey: secretKey,
+    // Add your public key bytes if needed by specific versions
+  } as any));
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const formData = await req.formData();
+    const file = formData.get("file") as File;
+    const jsonString = formData.get("json") as string;
+    const metadata = JSON.parse(jsonString);
 
-    // Use the Node.js version of the Irys SDK
-    const irys = await Uploader(Solana)
-      .withWallet(process.env.PRIVATE_KEY!) 
-      .withRpc("https://api.devnet.solana.com")
-      .devnet();
-
-    // Standard Node.js Buffer handles the hashing perfectly
-    const upload = await irys.upload(Buffer.from(JSON.stringify(body)), {
-      tags: [{ name: "Content-Type", value: "application/json" }],
+    // 1. Upload Image
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const umiFile = createGenericFile(buffer, file.name, {
+      tags: [{ name: "Content-Type", value: file.type }],
     });
+    const [imageUri] = await umi.uploader.upload([umiFile]);
 
-    return NextResponse.json({ uri: `https://gateway.irys.xyz/${upload.id}` });
-  } catch (err) {
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    // 2. Attach Image URI to metadata and upload JSON
+    metadata.image = imageUri;
+    const metadataUri = await umi.uploader.uploadJson(metadata);
+
+    return NextResponse.json({ uri: metadataUri });
+  } catch (err: any) {
+    console.error("UPLOAD ERROR:", err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
