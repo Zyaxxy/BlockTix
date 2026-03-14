@@ -44,6 +44,7 @@
     "@solana/react-hooks": "^1.1.5",
     "@solana/web3.js": "^1.98.4",
     "@supabase/supabase-js": "^2.98.0",
+    "bs58": "^6.0.0",
     "buffer": "^6.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

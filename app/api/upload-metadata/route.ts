@@ -6,23 +6,19 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
+    // Use the Node.js version of the Irys SDK
     const irys = await Uploader(Solana)
-      .withWallet(process.env.PRIVATE_KEY!)
+      .withWallet(process.env.PRIVATE_KEY!) 
       .withRpc("https://api.devnet.solana.com")
       .devnet();
 
-    const upload = await irys.upload(
-      Buffer.from(JSON.stringify(body)),
-      {
-        tags: [{ name: "Content-Type", value: "application/json" }],
-      }
-    );
+    // Standard Node.js Buffer handles the hashing perfectly
+    const upload = await irys.upload(Buffer.from(JSON.stringify(body)), {
+      tags: [{ name: "Content-Type", value: "application/json" }],
+    });
 
-    const uri = `https://gateway.irys.xyz/${upload.id}`;
-
-    return NextResponse.json({ uri });
+    return NextResponse.json({ uri: `https://gateway.irys.xyz/${upload.id}` });
   } catch (err) {
-    console.error(err);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
 }

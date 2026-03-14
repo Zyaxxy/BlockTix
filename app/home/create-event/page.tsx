@@ -169,6 +169,7 @@
 //     </form>
 //   );
 // }
+
 "use client";
 
 import { useState } from "react";
@@ -188,12 +189,13 @@ import { toWeb3JsLegacyTransaction } from "@metaplex-foundation/umi-web3js-adapt
 import { Connection, PublicKey, Keypair } from "@solana/web3.js";
 
 import { supabase } from "@/lib/supabase/client";
-import { uploadMetadata } from "@/lib/uploadMetadata";
+// REMOVED: import { uploadMetadata } from "@/lib/uploadMetadata";
 
 export default function CreateEventPage() {
   const router = useRouter();
   const { primaryWallet } = useDynamicContext();
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState("");
 
   const [formData, setFormData] = useState({
     title: "",
@@ -214,26 +216,34 @@ export default function CreateEventPage() {
     setLoading(true);
 
     try {
-      /* ---------------- Upload metadata to Arweave ---------------- */
-      /* ---------------- Upload metadata to Arweave ---------------- */
+      /* ---------------- STEP 1: Upload to Arweave (VIA API) ---------------- */
+      // No wallet popup will happen here. The server signs and pays.
+      setStep("Step 1/2: Storing data on Arweave...");
+      
+      const response = await fetch("/api/upload-metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.title,
+          description: formData.description,
+          location: formData.location,
+          event_date: formData.date,
+          ticket_price: formData.price,
+          total_tickets: formData.tickets,
+          organizer_wallet: primaryWallet.address,
+        }),
+      });
 
-const signer = await primaryWallet.getSigner();
+      const { uri, error } = await response.json();
+      if (error) throw new Error(error);
 
-const metadataUri = await uploadMetadata(
-  {
-    name: formData.title,
-    description: formData.description,
-    location: formData.location,
-    event_date: formData.date,
-    ticket_price: formData.price,
-    total_tickets: formData.tickets,
-    organizer_wallet: primaryWallet.address,
-  },
-  primaryWallet
-);
-      /* ---------------- Solana Transaction ---------------- */
+      /* ---------------- STEP 2: Solana Collection (Signature) ---------------- */
+      // This is now the FIRST and ONLY signature popup the user sees.
+      setStep("Step 2/2: Creating Solana Collection...");
+      
       const connection = new Connection("https://api.devnet.solana.com", "confirmed");
       const umi = createUmi(connection).use(mplCore());
+      
       const userUmiPublicKey = umiPublicKey(primaryWallet.address);
       umi.use(signerIdentity(createNoopSigner(userUmiPublicKey)));
 
@@ -242,7 +252,7 @@ const metadataUri = await uploadMetadata(
       const txBuilder = await createCollection(umi, {
         collection: collectionMint,
         name: formData.title || "Untitled Event",
-        uri: metadataUri,
+        uri: uri, // The URI returned from your API route
         plugins: [
           {
             type: "Royalties",
@@ -255,18 +265,23 @@ const metadataUri = await uploadMetadata(
 
       const web3Transaction = toWeb3JsLegacyTransaction(txBuilder);
       web3Transaction.feePayer = new PublicKey(primaryWallet.address);
+      
       const collectionKeypair = Keypair.fromSecretKey(collectionMint.secretKey);
       web3Transaction.partialSign(collectionKeypair);
 
       const solanaSigner = await primaryWallet.getSigner();
       const signedTx = await (solanaSigner as any).signTransaction(web3Transaction);
+      
       const signature = await connection.sendRawTransaction(signedTx.serialize());
       await connection.confirmTransaction(signature, "confirmed");
 
-      /* ---------------- Save in Supabase ---------------- */
+     /* ---------------- STEP 3: Save in Supabase ---------------- */
+      setStep("Finalizing...");
+      
       const { error: dbError } = await supabase.from("events").insert({
         organizer_wallet: primaryWallet.address,
         collection_address: collectionMint.publicKey.toString(),
+        metadata_uri: uri, // <--- ADD THIS LINE (uri comes from the Step 1 fetch)
         name: formData.title,
         description: formData.description,
         event_date: formData.date,
@@ -275,62 +290,78 @@ const metadataUri = await uploadMetadata(
         location: formData.location,
         created_at: new Date().toISOString(),
       });
+      
       if (dbError) throw dbError;
 
       alert("Event Created Successfully!");
       router.push("/home");
     } catch (err: any) {
-      console.error(err);
+      console.error("FLOW ERROR:", err);
       alert(err.message || "Transaction failed");
     } finally {
       setLoading(false);
+      setStep("");
     }
   };
 
   return (
     <form onSubmit={handleCreate} className="max-w-md mx-auto p-6 bg-black text-white space-y-4">
       <h1 className="text-3xl font-bold italic uppercase tracking-tighter">Create Event</h1>
+      
+      {step && (
+        <div className="bg-indigo-900/50 border border-indigo-500 p-3 rounded-lg text-sm text-indigo-200 animate-pulse">
+          {step}
+        </div>
+      )}
 
+      {/* ... (Rest of your form JSX remains identical) ... */}
       <input
         placeholder="Event Title"
         required
-        className="w-full bg-zinc-900 p-4 rounded-xl"
+        className="w-full bg-zinc-900 p-4 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
       />
 
       <textarea
         placeholder="Description"
-        className="w-full bg-zinc-900 p-4 rounded-xl"
+        className="w-full bg-zinc-900 p-4 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
       />
 
-      <input
-        type="datetime-local"
-        className="w-full bg-zinc-900 p-4 rounded-xl"
-        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-      />
+      <div className="grid grid-cols-2 gap-4">
+        <input
+          type="datetime-local"
+          className="bg-zinc-900 p-4 rounded-xl outline-none text-white [color-scheme:dark]"
+          onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+        />
+        <input
+          type="number"
+          placeholder="Tickets"
+          className="bg-zinc-900 p-4 rounded-xl outline-none"
+          onChange={(e) => setFormData({ ...formData, tickets: e.target.value })}
+        />
+      </div>
 
-      <input
-        type="number"
-        placeholder="Tickets"
-        className="w-full bg-zinc-900 p-4 rounded-xl"
-        onChange={(e) => setFormData({ ...formData, tickets: e.target.value })}
-      />
+      <div className="grid grid-cols-2 gap-4">
+        <input
+          type="number"
+          placeholder="Price (SOL)"
+          step="0.01"
+          className="bg-zinc-900 p-4 rounded-xl outline-none"
+          onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+        />
+        <input
+          placeholder="Location"
+          className="bg-zinc-900 p-4 rounded-xl outline-none"
+          onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+        />
+      </div>
 
-      <input
-        type="number"
-        placeholder="Price (SOL)"
-        className="w-full bg-zinc-900 p-4 rounded-xl"
-        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-      />
-
-      <input
-        placeholder="Location"
-        className="w-full bg-zinc-900 p-4 rounded-xl"
-        onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-      />
-
-      <button type="submit" disabled={loading} className="w-full bg-indigo-600 py-4 rounded-xl">
+      <button 
+        type="submit" 
+        disabled={loading} 
+        className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-zinc-700 py-4 rounded-xl font-bold transition-colors"
+      >
         {loading ? "PROCESSING..." : "CREATE EVENT"}
       </button>
     </form>
