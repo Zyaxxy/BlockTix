@@ -29,9 +29,50 @@ export async function POST(req: Request) {
     const [imageUri] = await umi.uploader.upload([umiFile]);
 
     // 2. Attach Image URI to metadata and upload JSON
-    metadata.image = imageUri;
-    const metadataUri = await umi.uploader.uploadJson(metadata);
+    // 2. Attach Image URI and build standardized metadata
+const standardizedMetadata = {
+  name: metadata.name,
+  description: metadata.description,
+  image: imageUri,
+  external_url: "",
 
+  attributes: [
+    {
+      trait_type: "Location",
+      value: metadata.location,
+    },
+    {
+      trait_type: "Event Date",
+      value: metadata.event_date,
+    },
+    {
+      trait_type: "Ticket Price (SOL)",
+      value: metadata.ticket_price,
+    },
+    {
+      trait_type: "Total Tickets",
+      value: metadata.total_tickets,
+    },
+  ],
+
+  properties: {
+    files: [
+      {
+        uri: imageUri,
+        type: file.type,
+      },
+    ],
+    category: "image",
+    creators: [
+      {
+        address: metadata.organizer_wallet,
+        share: 100,
+      },
+    ],
+  },
+};
+
+const metadataUri = await umi.uploader.uploadJson(standardizedMetadata);
     return NextResponse.json({ uri: metadataUri });
   } catch (err: any) {
     console.error("UPLOAD ERROR:", err);

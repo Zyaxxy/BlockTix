@@ -7,12 +7,23 @@ import {
   DynamicWidget
 } from "@dynamic-labs/sdk-react-core";
 import { supabase } from "@/lib/supabase/client";
+type Event = {
+  id: string;
+  name: string;
+  description: string;
+  location: string;
+  event_date: string;
+  total_tickets: number;
+  ticket_price: number;
+  metadata_uri: string;
+  image?: string;
+};
 
 export default function HomePage() {
   const { user, primaryWallet } = useDynamicContext();
   const router = useRouter();
 
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [firstName, setFirstName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -55,7 +66,26 @@ export default function HomePage() {
 
         if (res.ok) {
           const data = await res.json();
-          setEvents(data.events || []);
+          // setEvents(data.events || []);
+          const eventsWithImages = await Promise.all(
+  (data.events || []).map(async (event: any) => {
+    try {
+      if (!event.metadata_uri) return event;
+
+      const res = await fetch(event.metadata_uri);
+      const metadata = await res.json();
+
+      return {
+        ...event,
+        image: metadata.image,
+      };
+    } catch {
+      return event;
+    }
+  })
+);
+
+setEvents(eventsWithImages);
         }
       } catch (err) {
         console.error("Fetch failed:", err);
@@ -66,9 +96,9 @@ export default function HomePage() {
 
     fetchData();
   }, [user]);
-  return (
+ return (
   <div className="min-h-screen bg-black text-white px-8 py-6">
-    
+
     {/* Top Bar */}
     <div className="flex justify-between items-center mb-10">
       <h1 className="text-xl font-semibold">
@@ -87,7 +117,7 @@ export default function HomePage() {
         >
           + Create Event
         </button>
-        
+
         <div className="dynamic-widget-wrapper">
           <DynamicWidget />
         </div>
@@ -128,18 +158,47 @@ export default function HomePage() {
         {events.map((event) => (
           <div
             key={event.id}
-            className="bg-zinc-900 p-6 rounded-xl border border-zinc-800 hover:border-indigo-500 transition-all duration-300"
+            className="bg-zinc-900 rounded-xl border border-zinc-800 hover:border-indigo-500 transition-all duration-300 overflow-hidden"
           >
-            <h2 className="text-xl font-bold mb-2">{event.name}</h2>
-            <p className="text-zinc-400 text-sm mb-4 line-clamp-2">
-              {event.description}
-            </p>
-            
-            <div className="space-y-1 text-xs text-zinc-300 border-t border-zinc-800 pt-4">
-              <p>📍 {event.location || "No location set"}</p>
-              <p>📅 {event.event_date ? new Date(event.event_date).toLocaleString() : "Date TBD"}</p>
-              <p>🎟️ {event.total_tickets} Tickets • {event.ticket_price} SOL</p>
+
+            {/* IMAGE */}
+            {event.image && (
+              <img
+                src={event.image}
+                alt={event.name}
+                className="w-full h-40 object-cover"
+              />
+            )}
+
+            {/* CONTENT */}
+            <div className="p-6">
+              <h2 className="text-xl font-bold mb-2">{event.name}</h2>
+
+              <p className="text-zinc-400 text-sm mb-4 line-clamp-2">
+                {event.description}
+              </p>
+
+              <div className="space-y-1 text-xs text-zinc-300 border-t border-zinc-800 pt-4 mb-4">
+                <p>📍 {event.location || "No location set"}</p>
+                <p>
+                  📅 {event.event_date
+                    ? new Date(event.event_date).toLocaleString()
+                    : "Date TBD"}
+                </p>
+                <p>
+                  🎟️ {event.total_tickets} Tickets • {event.ticket_price} SOL
+                </p>
+              </div>
+
+              {/* BUY BUTTON */}
+              <button
+                className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition"
+                onClick={() => console.log("Buy ticket for:", event.id)}
+              >
+                Buy Ticket
+              </button>
             </div>
+
           </div>
         ))}
       </div>
