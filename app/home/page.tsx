@@ -36,13 +36,53 @@ export default function HomePage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [firstName, setFirstName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [peoplePerTicket, setPeoplePerTicket] = useState(1);
 
-  const handleBuyTicket = async (event: Event) => {
+  const formatScheduledDate = (eventDate: string) => {
+    if (!eventDate) return "Date TBD";
+
+    // Preserve the stored wall-clock date/time and avoid timezone shifts in rendering.
+    const sanitized = eventDate.trim().replace(/(Z|[+-]\d{2}:?\d{2})$/i, "");
+    const [datePart, timePart = "00:00"] = sanitized.split("T");
+
+    const [yearStr, monthStr, dayStr] = (datePart || "").split("-");
+    const [hourStr = "0", minuteStr = "0"] = timePart.split(":");
+
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    const day = Number(dayStr);
+    const hour = Number(hourStr);
+    const minute = Number(minuteStr);
+
+    if (
+      !Number.isFinite(year) ||
+      !Number.isFinite(month) ||
+      !Number.isFinite(day) ||
+      !Number.isFinite(hour) ||
+      !Number.isFinite(minute)
+    ) {
+      return new Date(eventDate).toLocaleString();
+    }
+
+    const localDate = new Date(year, month - 1, day, hour, minute);
+    return new Intl.DateTimeFormat(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(localDate);
+  };
+
+  const handleBuyTicket = async (event: Event, attendeeCount: number) => {
     try {
       if (!primaryWallet?.address) {
         alert("Please connect a wallet first.");
         return;
       }
+
+      const safeAttendeeCount = Math.min(5, Math.max(1, attendeeCount));
 
       if (event.organizer_wallet === primaryWallet.address) {
         alert("You cannot buy a ticket for your own event.");
@@ -88,6 +128,7 @@ export default function HomePage() {
           event_id: event.id,
           buyer_wallet: primaryWallet.address,
           payment_tx_signature,
+          people_per_ticket: safeAttendeeCount,
         }),
       });
 
@@ -108,11 +149,27 @@ export default function HomePage() {
       console.log("Mint tx:", mintData.mint_tx_signature);
       console.log("View mint tx in explorer:", `${explorerBase}/tx/${mintData.mint_tx_signature}${clusterParam}`);
 
-      alert("Ticket purchased! Your NFT ticket has been minted. Check console for explorer links.");
+      alert(`Ticket purchased for ${safeAttendeeCount} attendee(s)! Your NFT ticket has been minted. Check console for explorer links.`);
     } catch (error: any) {
       console.error("Ticket purchase failed:", error);
       alert(error?.message || "Ticket purchase failed");
     }
+  };
+
+  const openBuyModal = (event: Event) => {
+    setSelectedEvent(event);
+    setPeoplePerTicket(1);
+  };
+
+  const closeBuyModal = () => {
+    setSelectedEvent(null);
+    setPeoplePerTicket(1);
+  };
+
+  const confirmBuyTicket = async () => {
+    if (!selectedEvent) return;
+    await handleBuyTicket(selectedEvent, peoplePerTicket);
+    closeBuyModal();
   };
 
   // 🔹 Stable Logout Redirect
@@ -269,9 +326,7 @@ setEvents(eventsWithImages);
               <div className="space-y-1 text-xs text-zinc-300 border-t border-zinc-800 pt-4 mb-4">
                 <p>📍 {event.location || "No location set"}</p>
                 <p>
-                  📅 {event.event_date
-                    ? new Date(event.event_date).toLocaleString()
-                    : "Date TBD"}
+                  📅 {formatScheduledDate(event.event_date)}
                 </p>
                 <p>
                   🎟️ {event.total_tickets} Tickets • {event.ticket_price} SOL
@@ -286,7 +341,7 @@ setEvents(eventsWithImages);
               ) : (
                 <button
                   className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition"
-                  onClick={() => handleBuyTicket(event)}
+                  onClick={() => openBuyModal(event)}
                 >
                   Buy Ticket
                 </button>
@@ -295,6 +350,53 @@ setEvents(eventsWithImages);
 
           </div>
         ))}
+      </div>
+    )}
+
+    {selectedEvent && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+        <div className="w-full max-w-md rounded-xl border border-zinc-700 bg-zinc-900 p-6 shadow-2xl">
+          <h3 className="text-lg font-semibold mb-2">Buy Ticket</h3>
+          <p className="text-sm text-zinc-300 mb-4">{selectedEvent.name}</p>
+
+          <div className="space-y-3 text-sm text-zinc-200 rounded-lg bg-zinc-800 p-4">
+            <label htmlFor="peoplePerTicket" className="block text-zinc-300">
+              Number of people allowed in one ticket (max 5)
+            </label>
+            <input
+              id="peoplePerTicket"
+              type="number"
+              min={1}
+              max={5}
+              value={peoplePerTicket}
+              onChange={(e) => {
+                const nextValue = Number(e.target.value);
+                if (!Number.isFinite(nextValue)) {
+                  setPeoplePerTicket(1);
+                  return;
+                }
+                setPeoplePerTicket(Math.min(5, Math.max(1, Math.floor(nextValue))));
+              }}
+              className="w-full rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 outline-none focus:border-indigo-500"
+            />
+            <p className="text-xs text-zinc-400">1 ticket = {peoplePerTicket} attendee(s)</p>
+          </div>
+
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              onClick={closeBuyModal}
+              className="px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 transition text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmBuyTicket}
+              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition text-sm"
+            >
+              Continue
+            </button>
+          </div>
+        </div>
       </div>
     )}
   </div>

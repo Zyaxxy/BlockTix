@@ -19,7 +19,6 @@ export async function POST(req: Request) {
     const { data: events, error } = await supabase
       .from("events")
       .select("*")
-      .eq("organizer_wallet", wallet_address);
 
     if (error) throw error;
 

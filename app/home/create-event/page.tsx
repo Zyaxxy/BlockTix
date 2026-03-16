@@ -21,6 +21,21 @@ export default function CreateEventPage() {
     location: "",
   });
 
+  const parseApiResponse = async (res: Response) => {
+    const contentType = res.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+      return res.json();
+    }
+
+    const text = await res.text();
+    throw new Error(
+      `Unexpected API response (${res.status} ${res.statusText}): ${text
+        .slice(0, 120)
+        .replace(/\s+/g, " ")}`
+    );
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!primaryWallet || !isSolanaWallet(primaryWallet)) {
@@ -57,7 +72,7 @@ export default function CreateEventPage() {
         body: formDataPayload,
       });
 
-      const { uri, error: uploadError } = await uploadRes.json();
+      const { uri, error: uploadError } = await parseApiResponse(uploadRes);
       if (uploadError) throw new Error(uploadError);
       if (!uri) throw new Error("No metadata URI returned");
 
@@ -78,7 +93,7 @@ export default function CreateEventPage() {
         }),
       });
 
-      const collectionData = await collectionRes.json();
+      const collectionData = await parseApiResponse(collectionRes);
       if (!collectionRes.ok) throw new Error(collectionData.error ?? "Failed to create collection");
 
       alert("Event created successfully!");

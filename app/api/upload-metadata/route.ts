@@ -6,20 +6,32 @@ import { fromWeb3JsKeypair } from "@metaplex-foundation/umi-web3js-adapters";
 import { Keypair } from "@solana/web3.js";
 import bs58 from "bs58";
 
-const secretKeyBase58 =
-  process.env.TICKET_AUTHORITY_SECRET_KEY || process.env.PRIVATE_KEY || "";
-const web3Keypair = Keypair.fromSecretKey(bs58.decode(secretKeyBase58));
-const umiKeypair = fromWeb3JsKeypair(web3Keypair);
-
-const umi = createUmi("https://api.devnet.solana.com")
-  .use(irysUploader())
-  .use(keypairIdentity(umiKeypair));
-
 export async function POST(req: Request) {
   try {
+    const secretKeyBase58 =
+      process.env.TICKET_AUTHORITY_SECRET_KEY || process.env.PRIVATE_KEY || "";
+    if (!secretKeyBase58) {
+      return NextResponse.json(
+        { error: "TICKET_AUTHORITY_SECRET_KEY (or PRIVATE_KEY) not set" },
+        { status: 500 }
+      );
+    }
+
+    const web3Keypair = Keypair.fromSecretKey(bs58.decode(secretKeyBase58));
+    const umiKeypair = fromWeb3JsKeypair(web3Keypair);
+    const umi = createUmi("https://api.devnet.solana.com")
+      .use(irysUploader())
+      .use(keypairIdentity(umiKeypair));
+
     const formData = await req.formData();
     const file = formData.get("file") as File;
     const jsonString = formData.get("json") as string;
+    if (!file || !jsonString) {
+      return NextResponse.json(
+        { error: "Missing required multipart fields: file and json" },
+        { status: 400 }
+      );
+    }
     const metadata = JSON.parse(jsonString);
 
     // 1. Upload Image
