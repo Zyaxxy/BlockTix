@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Inter, Figtree, Instrument_Serif } from "next/font/google";
 import "./globals.css";
-import { Providers } from "./components/providers";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -30,7 +29,7 @@ const instrumentSerif = Instrument_Serif({
 })
 
 export const metadata: Metadata = {
-  title: "SOLTix",
+  title: "Soltix",
   description: "",
   icons: {
     icon: "/icon.svg",
@@ -46,13 +45,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preload" href="/bg.mp4" as="video" type="video/mp4" />
+      </head>
       <body
         suppressHydrationWarning
-        className={`${inter.variable} ${geistMono.variable} antialiased`}
+        className={`${inter.variable} ${geistMono.variable} ${figtree.variable} ${instrumentSerif.variable} antialiased`}
       >
-        <Providers>
-          {children}
-        </Providers>
+        {children}
       </body>
     </html>
   );

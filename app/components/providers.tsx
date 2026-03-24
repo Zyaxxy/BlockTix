@@ -1,15 +1,4 @@
 "use client"; 
-// import { SolanaProvider } 
-// from "@solana/react-hooks"; import { PropsWithChildren } 
-// from "react"; import { autoDiscover, createClient } 
-// from "@solana/client"; 
-// const client = createClient({ endpoint: "https://api.devnet.solana.com", walletConnectors: autoDiscover(), }); 
-// export function Providers({ children }: PropsWithChildren) 
-// {
-//    return <SolanaProvider client={client}>{children}</SolanaProvider>;
-   
-//   }
-  
 import {
   DynamicContextProvider,
   DynamicWidget,
@@ -30,8 +19,7 @@ export function Providers({ children }: ProvidersProps) {
       settings={{
         environmentId: "443c84bd-1386-4119-8abf-3693c9640caa",
         walletConnectors: [SolanaWalletConnectors],
-      }}
-    >
+      }}>
       {children}
     </DynamicContextProvider>
   );

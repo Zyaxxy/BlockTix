@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
 import { supabase } from "@/lib/supabase";
+import Router from "next/router";
 
 export default function OrganizerDashboard() {
   const { user, handleLogOut } = useDynamicContext();
   const isLoggedIn = useIsLoggedIn();
-  const router = useRouter();
+  const router = Router;
   const [ready, setReady] = useState(false);
 
   useEffect(() => {

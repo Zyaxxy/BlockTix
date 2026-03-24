@@ -52,6 +52,9 @@
 --soltix-glass: 240 6% 10% / 0.4;
 --soltix-glass-border: 0 0% 100% / 0.1;
 --soltix-glass-border-top: 0 0% 100% / 0.2;
+  --stroke: 0 0% 18%;
+  --radius-pill: 9999px;
+  --font-body: var(--font-figtree);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -114,6 +117,12 @@
 }
 
 @layer base {
+  html,
+  body {
+    width: 100%;
+    min-height: 100%;
+  }
+
   * {
     @apply border-border outline-transparent;
     @apply border-border outline-ring/50;
@@ -121,9 +130,16 @@
 
   body {
     @apply bg-bg1 text-foreground antialiased;
-    font-family: var(--font-sans);
+    font-family: var(--font-figtree), var(--font-sans);
+    margin: 0;
     color-scheme: light dark;
     @apply bg-black text-white;
+  }
+
+  button,
+  a,
+  .rounded-pill {
+    border-radius: var(--radius-pill);
   }
 }
 
@@ -162,11 +178,122 @@
 }
 
 @layer utilities {
+  .bg-bg {
+    background-color: var(--background);
+    background-color: hsl(var(--background));
+  }
+
+  .text-text {
+    color: var(--foreground);
+    color: hsl(var(--foreground));
+  }
+
+  .text-muted {
+    color: var(--muted-foreground);
+    color: hsl(var(--muted-foreground));
+  }
+
+  .bg-stroke\/50 {
+    background-color: hsl(var(--stroke) / 0.5);
+  }
+
+  .font-display {
+    font-family: var(--font-instrument-serif), serif;
+  }
+
+  .text-shadow-soft {
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.34);
+  }
+  
+  .rounded-pill {
+    border-radius: var(--radius-pill);
+  }
+
+  .cinematic-vignette {
+    background:
+      radial-gradient(circle at center, rgba(0, 0, 0, 0) 42%, rgba(0, 0, 0, 0.3) 100%),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 0%, rgba(0, 0, 0, 0.13) 100%);
+  }
+
+  .cinematic-scanlines {
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.055) 0,
+      rgba(255, 255, 255, 0.055) 1px,
+      rgba(255, 255, 255, 0) 2px,
+      rgba(255, 255, 255, 0) 5px
+    );
+    mix-blend-mode: soft-light;
+    opacity: 0.34;
+  }
+
+  .mask-gradient {
+    -webkit-mask-image: radial-gradient(circle at center, black 60%, transparent 100%);
+    mask-image: radial-gradient(circle at center, black 60%, transparent 100%);
+  }
+
   .soltix-glass {
     @apply backdrop-blur-2xl border rounded-[2rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)];
     background: hsl(var(--soltix-glass));
     border-color: hsl(var(--soltix-glass-border));
     border-top-color: hsl(var(--soltix-glass-border-top));
+  }
+
+  .liquid-glass,
+  .liquid-glass-strong {
+    position: relative;
+    border: 0;
+    background: rgba(255, 255, 255, 0.01);
+    background-blend-mode: luminosity;
+  }
+
+  .liquid-glass {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .liquid-glass-strong {
+    backdrop-filter: blur(50px);
+    -webkit-backdrop-filter: blur(50px);
+    background: rgba(255, 255, 255, 0.02);
+    box-shadow:
+      4px 4px 4px rgba(0, 0, 0, 0.05),
+      inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  }
+
+  .liquid-glass::before,
+  .liquid-glass-strong::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.4px;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.45) 0%,
+      rgba(255, 255, 255, 0.08) 48%,
+      rgba(255, 255, 255, 0.08) 52%,
+      rgba(255, 255, 255, 0.45) 100%
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .liquid-glass-strong::before {
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.6) 0%,
+      rgba(255, 255, 255, 0.14) 48%,
+      rgba(255, 255, 255, 0.14) 52%,
+      rgba(255, 255, 255, 0.6) 100%
+    );
   }
 
   .soltix-gradient-btn {
