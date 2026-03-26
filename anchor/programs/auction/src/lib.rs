@@ -5,10 +5,10 @@ pub mod state;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("GPfsmgJRLLxaWScL2PPEt5TAgAjzNYTaMuzmsPipnfSv");
+declare_id!("Fs6SxZtS8QP5ME9ApPg34KcBnhKX7QkgNoFnJ3jLtE61");
 
 #[program]
-pub mod capstone {
+pub mod auction {
     use super::*;
 
     pub fn make_auction(

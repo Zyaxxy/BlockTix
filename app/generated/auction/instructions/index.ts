@@ -6,4 +6,8 @@
  * @see https://github.com/codama-idl/codama
  */
 
-export * from "./vault";
+export * from "./bid";
+export * from "./cancelAuction";
+export * from "./claimRefund";
+export * from "./makeAuction";
+export * from "./resolveAuction";

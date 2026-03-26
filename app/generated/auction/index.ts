@@ -6,5 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
-export * from "./deposit";
-export * from "./withdraw";
+export * from "./accounts";
+export * from "./errors";
+export * from "./instructions";
+export * from "./programs";
