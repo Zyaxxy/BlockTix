@@ -46,7 +46,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="preload" href="/bg.mp4" as="video" type="video/mp4" />
+        <link rel="preload" as="image" href="/images/hero_bg.jpeg" type="image/jpeg" />
+        <link rel="preload" as="video" href="/bg1.mp4" type="video/mp4" />
       </head>
       <body
         suppressHydrationWarning
