@@ -281,3 +281,27 @@
     );
   }
 }
+
+
+
+.dynamic-shadow-dom {
+  
+  --dynamic-base-1: transparent;
+  --dynamic-base-2: transparent;
+  --dynamic-base-3: transparent;
+  
+
+  
+  --dynamic-text-primary: #ffffff;
+  --dynamic-text-secondary: rgba(255,255,255,0.6);
+
+  
+  --dynamic-brand-primary-color: #fcae1fc9;
+
+  
+  --dynamic-overlay: rgba(0, 0, 0, 0.352);
+
+  
+  --dynamic-modal-backdrop-filter: blur(15px) saturate(180%);
+}
+

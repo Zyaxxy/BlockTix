@@ -4,6 +4,8 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import BlurText from "./BlurText";
+import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
+
 
 function ArrowUpRightIcon({ className = "h-4 w-4" }: { className?: string }) {
     return (
@@ -37,23 +39,14 @@ function MenuToggle({ open, onClick }: { open: boolean; onClick: () => void }) {
             className="relative flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full transition"
         >
             <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round">
-                <motion.line
-                    x1="4" y1="7" x2="20" y2="7"
-                    initial={{ x1: 4, y1: 7, x2: 20, y2: 7 }}
-                    animate={open ? { x1: 5, y1: 5, x2: 19, y2: 19 } : { x1: 4, y1: 7, x2: 20, y2: 7 }}
-                    transition={{ duration: 0.25 }}
+                <motion.line x1="4" y1="7" x2="20" y2="7"
+                    animate={open ? { x1: 5, y1: 5, x2: 19, y2: 19 } : {}}
                 />
-                <motion.line
-                    x1="4" y1="12" x2="20" y2="12"
-                    initial={{ opacity: 1 }}
-                    animate={open ? { opacity: 0 } : { opacity: 1 }}
-                    transition={{ duration: 0.2 }}
+                <motion.line x1="4" y1="12" x2="20" y2="12"
+                    animate={open ? { opacity: 0 } : {}}
                 />
-                <motion.line
-                    x1="4" y1="17" x2="20" y2="17"
-                    initial={{ x1: 4, y1: 17, x2: 20, y2: 17 }}
-                    animate={open ? { x1: 5, y1: 19, x2: 19, y2: 5 } : { x1: 4, y1: 17, x2: 20, y2: 17 }}
-                    transition={{ duration: 0.25 }}
+                <motion.line x1="4" y1="17" x2="20" y2="17"
+                    animate={open ? { x1: 5, y1: 19, x2: 19, y2: 5 } : {}}
                 />
             </svg>
         </button>
@@ -61,16 +54,28 @@ function MenuToggle({ open, onClick }: { open: boolean; onClick: () => void }) {
 }
 
 const NAV_LINKS = ["Overview", "Tickets", "Collectors", "Security", "Launchpad"];
-const PARTNERS = ["Solana", "Backpack", "Phantom", "Helius", "Jupiter"];
+const PARTNERS = ["Solana", "Backpack", "Phantom", "Helius", "Jupiter"] as const;
+
+type Partner = typeof PARTNERS[number];
+
+const partnerColors: Record<Partner, string> = {
+  Solana: "text-purple-400",
+  Backpack: "text-red-400",
+  Phantom: "text-fuchsia-300",
+  Helius: "text-orange-400",
+  Jupiter: "text-lime-400",
+};
 
 export default function HeroContent() {
     const [menuOpen, setMenuOpen] = useState(false);
 
+    // ✅ THIS replaces all modal logic
+    const { setShowAuthFlow } = useDynamicContext();
+
     return (
-        <section
-            className="relative isolate min-h-screen w-full overflow-hidden text-[hsl(var(--foreground))]"
-            style={{ overscrollBehavior: "none" }}
-        >
+        <section className="relative isolate min-h-screen w-full overflow-hidden text-[hsl(var(--foreground))]">
+
+            {/* DESKTOP NAV */}
             <header className="hidden md:block fixed top-0 left-0 z-[200] w-full px-10 py-4">
                 <nav className="mx-auto flex max-w-[1260px] items-center justify-between">
                     <div className="liquid-glass rounded-pill flex items-center gap-3 px-2 py-1.5">
@@ -78,28 +83,47 @@ export default function HeroContent() {
                             <a
                                 key={item}
                                 href="#"
+                                onClick={(e) => {
+                                    if (item === "Launchpad") {
+                                        e.preventDefault();
+                                        setShowAuthFlow(true); // ✅ Organizer login
+                                    }
+                                }}
                                 className="text-sm font-medium px-2.5 py-1.5 rounded-full text-white/85 text-shadow-soft transition hover:text-white rounded-pill"
                             >
                                 {item}
                             </a>
                         ))}
                     </div>
-                    <Link
-                        href="/login"
-                        className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-black shadow-[0_8px_22px_rgba(0,0,0,0.22)]"
-                    >
-                        Claim Access
-                        <ArrowUpRightIcon />
-                    </Link>
+
+                    <button
+  onClick={() => setShowAuthFlow(true)}
+  className="group relative overflow-hidden inline-flex items-center justify-center gap-1.5 rounded-full bg-white px-4 py-3 text-sm font-semibold text-black shadow-[0_8px_22px_rgba(0,0,0,0.22)] cursor-pointer
+  before:absolute before:left-0 before:top-0 before:h-0 before:w-1/4 before:bg-gradient-to-b before:from-yellow-300 before:via-yellow-400 before:to-yellow-500 before:duration-500
+  after:absolute after:bottom-0 after:right-0 after:h-0 after:w-1/4 after:bg-gradient-to-t after:from-yellow-300 after:via-yellow-400 after:to-yellow-500 after:duration-500
+  hover:text-black hover:before:h-full hover:after:h-full"
+>
+  {/* middle strips */}
+  <span className="absolute inset-0 flex items-center justify-center
+    before:absolute before:bottom-0 before:left-1/4 before:z-0 before:h-0 before:w-1/4 before:bg-gradient-to-t before:from-yellow-300 before:via-yellow-400 before:to-yellow-500 before:duration-500
+    after:absolute after:top-0 after:right-1/4 after:z-0 after:h-0 after:w-1/4 after:bg-gradient-to-b after:from-yellow-300 after:via-yellow-400 after:to-yellow-500 after:duration-500
+    group-hover:before:h-full group-hover:after:h-full"
+  />
+
+  {/* content */}
+  <span className="relative z-10 flex items-center gap-1.5">
+    Claim Access
+    <ArrowUpRightIcon />
+  </span>
+</button>
                 </nav>
             </header>
 
+            {/* MOBILE NAV */}
             <header className="md:hidden fixed top-0 left-0 z-[200] w-full px-4 pt-4">
-                <div className="liquid-glass rounded-pill flex items-center justify-between gap-3 px-3 py-2">
-                    <span className="font-display italic text-sm leading-none tracking-tight text-white text-shadow-soft select-none">
-                        SOLTix
-                    </span>
-                    <MenuToggle open={menuOpen} onClick={() => setMenuOpen((v) => !v)} />
+                <div className="liquid-glass rounded-pill flex items-center justify-between px-3 py-2">
+                    <span className="text-white">SOLTix</span>
+                    <MenuToggle open={menuOpen} onClick={() => setMenuOpen(!menuOpen)} />
                 </div>
             </header>
 
@@ -145,18 +169,21 @@ export default function HeroContent() {
                             <p className="text-xs text-white/45 text-shadow-soft">
                                 Discover events with programmable, verifiable tickets.
                             </p>
-                            <Link
-                                href="/login"
+                            <button
+                                onClick={() => setShowAuthFlow(true)}
                                 className="liquid-glass-strong text-shadow-soft inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold text-white"
                             >
                                 Claim Access
                                 <ArrowUpRightIcon />
-                            </Link>
+                            </button>
                         </motion.div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
+            
+
+            {/* HERO CONTENT */}
             <motion.div
                 className="relative z-10 flex min-h-screen flex-col items-center justify-center px-5 pb-28 text-center md:px-6 md:pb-20"
                 animate={{ opacity: menuOpen ? 0 : 1, pointerEvents: menuOpen ? "none" : "auto" }}
@@ -168,7 +195,7 @@ export default function HeroContent() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.2 }}
                 >
-                    <span className="whitespace-nowrap rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold tracking-wide text-black md:px-3 md:py-1 md:text-xs">
+                    <span className="whitespace-nowrap rounded-full bg-red-500 px-2.5 py-0.5 text-[10px] font-semibold tracking-wide text-white md:px-3 md:py-1 md:text-xs">
                         Live
                     </span>
                     <span className="whitespace-nowrap font-light text-shadow-soft">
@@ -176,10 +203,13 @@ export default function HeroContent() {
                     </span>
                 </motion.div>
 
-                <BlurText
-                    text="Own Your Access Keep It Verifiable"
-                    className="mt-6 max-w-xs text-balance font-display text-5xl leading-[0.85] tracking-[-3px] text-white italic drop-shadow-[0_16px_26px_rgba(0,0,0,0.42)] sm:max-w-lg sm:text-6xl md:mt-8 md:max-w-2xl md:text-7xl md:tracking-[-4px] lg:text-[5.5rem]"
-                />
+                <h1
+  className="relative z-50 inline-block 
+  bg-gradient-to-r from-slate-50 to-gray-500
+  bg-clip-text text-transparent mt-6 max-w-xs text-balance font-display text-5xl leading-[0.85] tracking-[-3px] italic drop-shadow-[0_16px_26px_rgba(0,0,0,0.42)] sm:max-w-lg sm:text-6xl md:mt-8 md:max-w-2xl md:text-7xl md:tracking-[-4px] lg:text-[5.5rem]"
+>
+  Own Your Access Keep It Verifiable
+</h1>
 
                 <motion.p
                     className="mt-5 max-w-xs text-shadow-soft text-sm leading-snug font-light text-white/90 drop-shadow-[0_8px_24px_rgba(0,0,0,0.24)] sm:max-w-md md:mt-7 md:max-w-2xl md:text-base md:leading-tight"
@@ -196,16 +226,21 @@ export default function HeroContent() {
                     animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                     transition={{ duration: 0.6, delay: 1.1, ease: "easeOut" }}
                 >
-                    <Link
-                        href="/login"
-                        className="liquid-glass-strong text-shadow-soft inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-white sm:w-auto"
-                    >
-                        Enter SOLTix
-                        <ArrowUpRightIcon />
-                    </Link>
+                    <button
+  onClick={() => setShowAuthFlow(true)}
+  className="relative overflow-hidden  text-shadow-soft inline-flex w-full items-center justify-center gap-2 rounded-full mb-8 px-6 py-3 text-sm font-medium text-white sm:w-auto cursor-pointer
+  before:absolute before:inset-0 before:z-0 before:w-0
+  before:bg-white/70 before:transition-all before:duration-500
+  hover:before:w-full hover:text-black"
+>
+  <span className="relative z-10 flex items-center gap-2 transition-colors duration-300 hover:text-black">
+    Enter SOLTix
+    <ArrowUpRightIcon />
+  </span>
+</button>
                     <button
                         type="button"
-                        className="text-shadow-soft inline-flex items-center gap-2 text-sm font-medium text-white/90 transition hover:text-white"
+                        className="text-shadow-soft inline-flex items-center gap-2 mb-8 text-sm font-medium text-white/90 transition hover:text-white"
                     >
                         <PlayIcon />
                         Watch Demo
@@ -224,12 +259,18 @@ export default function HeroContent() {
                     </span>
                     <div className="h-px w-full bg-gradient-to-r from-white/0 via-white/30 to-white/0" />
                     <div className="text-shadow-soft flex flex-wrap items-center justify-center gap-x-6 gap-y-1 text-[1.5rem] leading-none tracking-tight text-white/70 md:gap-x-10 md:text-[2.5rem]">
-                        {PARTNERS.map((partner) => (
-                            <span key={partner} className="font-display italic">{partner}</span>
-                        ))}
+                        {PARTNERS.map((partner: Partner) => (
+  <span
+    key={partner}
+    className={`font-display italic ${partnerColors[partner]}`}
+  >
+    {partner}
+  </span>
+))}
                     </div>
                 </div>
             </motion.div>
+
         </section>
     );
 }

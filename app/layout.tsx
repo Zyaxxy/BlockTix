@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Inter, Figtree, Instrument_Serif } from "next/font/google";
 import "./globals.css";
+import { DynamicContextProvider } from "@dynamic-labs/sdk-react-core";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -18,7 +19,7 @@ const figtree = Figtree({
   weight: ["300", "400", "500", "600", "700"],
   variable: "--font-figtree",
   display: "swap",
-})
+});
 
 const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
@@ -26,7 +27,7 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
   variable: "--font-instrument-serif",
   display: "swap",
-})
+});
 
 export const metadata: Metadata = {
   title: "Soltix",
@@ -53,7 +54,13 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${inter.variable} ${geistMono.variable} ${figtree.variable} ${instrumentSerif.variable} antialiased`}
       >
-        {children}
+        <DynamicContextProvider
+          settings={{
+            environmentId: "81ca04f7-1915-4295-a520-f3a2941e6b54",
+          }}
+        >
+          {children}
+        </DynamicContextProvider>
       </body>
     </html>
   );
