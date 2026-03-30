@@ -7,8 +7,9 @@ export default function Home() {
     <AppWrapper>
       <div className="relative h-screen w-screen overflow-hidden bg-black text-white">
         <BackgroundShader />
-        <div className="absolute inset-0 z-20">
-          <HeroContent />
+        
+        <div className="absolute inset-0 z-20 hero-wrapper">
+         <HeroContent />
         </div>
       </div>
     </AppWrapper>

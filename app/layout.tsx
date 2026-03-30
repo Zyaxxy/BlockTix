@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Inter, Figtree, Instrument_Serif } from "next/font/google";
 import "./globals.css";
+import { Providers } from "../app/components/providers";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -18,7 +19,7 @@ const figtree = Figtree({
   weight: ["300", "400", "500", "600", "700"],
   variable: "--font-figtree",
   display: "swap",
-})
+});
 
 const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
@@ -26,7 +27,7 @@ const instrumentSerif = Instrument_Serif({
   style: ["normal", "italic"],
   variable: "--font-instrument-serif",
   display: "swap",
-})
+});
 
 export const metadata: Metadata = {
   title: "Soltix",
@@ -46,6 +47,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Preloading assets for performance */}
         <link rel="preload" as="image" href="/images/hero_bg.jpeg" type="image/jpeg" />
         <link rel="preload" as="video" href="/bg1.mp4" type="video/mp4" />
       </head>
@@ -53,7 +55,10 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${inter.variable} ${geistMono.variable} ${figtree.variable} ${instrumentSerif.variable} antialiased`}
       >
-        {children}
+        {/* single source of truth for DynamicContextProvider */}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
