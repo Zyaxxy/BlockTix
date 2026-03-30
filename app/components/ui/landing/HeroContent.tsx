@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
-import BlurText from "./BlurText";
 import { useDynamicContext } from "@dynamic-labs/sdk-react-core";
 
 
@@ -69,7 +67,7 @@ const partnerColors: Record<Partner, string> = {
 export default function HeroContent() {
     const [menuOpen, setMenuOpen] = useState(false);
 
-    // ✅ THIS replaces all modal logic
+    // THIS replaces all modal logic
     const { setShowAuthFlow } = useDynamicContext();
 
     return (
@@ -86,7 +84,7 @@ export default function HeroContent() {
                                 onClick={(e) => {
                                     if (item === "Launchpad") {
                                         e.preventDefault();
-                                        setShowAuthFlow(true); // ✅ Organizer login
+                                        setShowAuthFlow(true); 
                                     }
                                 }}
                                 className="text-sm font-medium px-2.5 py-1.5 rounded-full text-white/85 text-shadow-soft transition hover:text-white rounded-pill"
@@ -195,7 +193,7 @@ export default function HeroContent() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.2 }}
                 >
-                    <span className="whitespace-nowrap rounded-full bg-red-500 px-2.5 py-0.5 text-[10px] font-semibold tracking-wide text-white md:px-3 md:py-1 md:text-xs">
+                    <span className="whitespace-nowrap rounded-full bg-red-500 px-2.5 py-0.5 text-[10px] font-semibold tracking-wide text-white md:px-3 md:py-1 md:text-xs hover:scale-105 transition-transform duration-150 ease-out cursor-pointer">
                         Live
                     </span>
                     <span className="whitespace-nowrap font-light text-shadow-soft">
