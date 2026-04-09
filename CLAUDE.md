@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-SOLTix is a decentralized ticketing system built on Solana. It uses Anchor for smart contracts and Next.js for the frontend.
+SOLTix is a decentralized ticketing system with Auction functionality built on Solana. It uses Anchor for smart contracts and Next.js for the frontend.
 
 ## Architecture
 

@@ -13,7 +13,7 @@ export default function UserDashboard() {
 
   useEffect(() => {
     if (!isLoggedIn) {
-      router.replace("/login/user");
+      router.replace("/login");
       return;
     }
 
@@ -28,7 +28,7 @@ export default function UserDashboard() {
         .single();
 
       if (error || !data) {
-        router.replace("/login/user");
+        router.replace("/login");
         return;
       }
 
