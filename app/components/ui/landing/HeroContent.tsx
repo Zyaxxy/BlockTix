@@ -97,7 +97,7 @@ export default function HeroContent() {
             <header className="md:hidden fixed top-0 left-0 z-[200] w-full px-4 pt-4">
                 <div className="liquid-glass rounded-pill flex items-center justify-between gap-3 px-3 py-2">
                     <span className="font-display italic text-sm leading-none tracking-tight text-white text-shadow-soft select-none">
-                        SOLTix
+                        BlockTix
                     </span>
                     <MenuToggle open={menuOpen} onClick={() => setMenuOpen((v) => !v)} />
                 </div>
@@ -187,7 +187,7 @@ export default function HeroContent() {
                     animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                     transition={{ duration: 0.6, delay: 0.8, ease: "easeOut" }}
                 >
-                    SOLTix turns every pass into a secure digital collectible, letting organizers launch with confidence and fans hold proof of attendance forever.
+                    BlockTix turns every pass into a secure digital collectible, letting organizers launch with confidence and fans hold proof of attendance forever.
                 </motion.p>
 
                 <motion.div
@@ -200,7 +200,7 @@ export default function HeroContent() {
                         href="/login"
                         className="liquid-glass-strong text-shadow-soft inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-white sm:w-auto"
                     >
-                        Enter SOLTix
+                        Enter BlockTix
                         <ArrowUpRightIcon />
                     </Link>
                     <button

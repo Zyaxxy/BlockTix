@@ -281,47 +281,4 @@
     );
   }
 
-  /* Dynamic Widget glass overrides */
-  .glass-dynamic-widget [data-did="dynamic-widget"],
-  .glass-dynamic-widget .dynamic-widget {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-  }
-
-  .glass-dynamic-widget [class*="dynamic-social"],
-  .glass-dynamic-widget [class*="dynamic-button"],
-  .glass-dynamic-widget [class*="dynamic-input"],
-  .glass-dynamic-widget [class*="dynamic-connect"] {
-    border-radius: 12px !important;
-  }
-
-  .glass-dynamic-widget [class*="dynamic-input"] {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: white !important;
-  }
-
-  .glass-dynamic-widget [class*="dynamic-input"]::placeholder {
-    color: rgba(255, 255, 255, 0.3) !important;
-  }
-
-  .glass-dynamic-widget [class*="dynamic-divider"] {
-    border-color: rgba(255, 255, 255, 0.08) !important;
-  }
-
-  .glass-dynamic-widget [class*="dynamic-text"],
-  .glass-dynamic-widget [class*="dynamic-heading"],
-  .glass-dynamic-widget [class*="dynamic-label"],
-  .glass-dynamic-widget [class*="dynamic-link"] {
-    color: rgba(255, 255, 255, 0.7) !important;
-  }
-
-  .glass-dynamic-widget [class*="dynamic-heading"] {
-    color: white !important;
-  }
-
-  .glass-dynamic-widget [class*="dynamic-footer"] {
-    border-color: rgba(255, 255, 255, 0.06) !important;
-  }
 }

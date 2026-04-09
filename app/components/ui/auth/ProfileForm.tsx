@@ -46,7 +46,7 @@ export default function ProfileForm({ userId, onComplete }: ProfileFormProps) {
 
   return (
     <motion.div
-      className="liquid-glass-strong w-full max-w-md rounded-3xl p-8 md:p-10"
+      className="liquid-glass-strong w-full max-w-md rounded-3xl p-8 md:p-10 pointer-events-auto shadow-[0_20px_60px_rgba(0,0,0,0.4)]"
       initial={{ opacity: 0, y: 20, filter: "blur(10px)" }}
       animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       transition={{ duration: 0.5, ease: "easeOut" }}
@@ -94,7 +94,7 @@ export default function ProfileForm({ userId, onComplete }: ProfileFormProps) {
         <button
           type="submit"
           disabled={loading || !name.trim()}
-          className="liquid-glass-strong w-full rounded-full py-3 text-sm font-medium text-white disabled:opacity-40 transition-opacity"
+          className="liquid-glass-strong text-shadow-soft w-full rounded-full py-3 text-sm font-medium text-white disabled:opacity-40 transition-all hover:bg-white/12 hover:border-white/25"
         >
           {loading ? "Saving..." : "Continue"}
         </button>

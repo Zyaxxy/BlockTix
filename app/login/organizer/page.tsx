@@ -51,14 +51,14 @@ export default function OrganizerLogin() {
         >
           <div className="text-center mb-8">
             <h1 className="font-display italic text-4xl tracking-tight text-white text-shadow-soft">
-              SOLTix
+              BlockTix
             </h1>
             <p className="text-sm text-white/50 mt-2 font-light">
               Organizer access
             </p>
           </div>
 
-          <div className="glass-dynamic-widget">
+          <div className="liquid-glass rounded-2xl p-4 md:p-5">
             <DynamicWidget />
           </div>
         </motion.div>

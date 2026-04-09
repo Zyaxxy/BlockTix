@@ -55,7 +55,7 @@ export default function UserDashboard() {
       <h1 className="text-2xl mb-4">User Dashboard</h1>
       <button
         onClick={onLogout}
-        className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded"
+        className="liquid-glass-strong text-shadow-soft inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-white transition hover:opacity-80"
       >
         Logout
       </button>

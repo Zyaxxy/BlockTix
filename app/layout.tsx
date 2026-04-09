@@ -29,7 +29,7 @@ const instrumentSerif = Instrument_Serif({
 })
 
 export const metadata: Metadata = {
-  title: "Soltix",
+  title: "BlockTix - Decentralized Ticketing on Solana",
   description: "",
   icons: {
     icon: "/icon.svg",
