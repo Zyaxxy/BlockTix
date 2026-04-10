@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useDynamicContext, useDynamicWaas } from "@dynamic-labs/sdk-react-core";
+import {
+  useDynamicContext,
+  useDynamicWaas,
+  useProjectSettings,
+} from "@dynamic-labs/sdk-react-core";
 import { Loader2, WalletCards } from "lucide-react";
 
 const EMAIL_CREDENTIAL_FORMAT = "email";
@@ -15,15 +19,24 @@ const ALLOWED_LOGIN_FORMATS = new Set([
 ]);
 
 export function ClaimEmbeddedWalletButton() {
-  const { user } = useDynamicContext();
+  const { user, refetchProjectSettings } = useDynamicContext();
   const {
     createWalletAccount,
     dynamicWaasIsEnabled,
     initializeWaas,
     shouldInitializeWaas,
   } = useDynamicWaas();
+  const projectSettings = useProjectSettings();
   const [status, setStatus] = useState<"idle" | "creating" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const activeEnvironmentId =
+    process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID ?? "(missing NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID)";
+
+  const enabledEmbeddedChains = useMemo(() => {
+    const chainConfigurations = projectSettings?.sdk?.embeddedWallets?.chainConfigurations ?? [];
+    return chainConfigurations.filter((chain) => chain.enabled).map((chain) => chain.name);
+  }, [projectSettings]);
 
   const isEligible = useMemo(() => {
     const verifiedCredentials = user?.verifiedCredentials ?? [];
@@ -54,6 +67,8 @@ export function ClaimEmbeddedWalletButton() {
     setErrorMessage(null);
 
     try {
+      await refetchProjectSettings?.();
+
       if (shouldInitializeWaas) {
         await initializeWaas();
       }
@@ -99,6 +114,16 @@ export function ClaimEmbeddedWalletButton() {
       {status === "error" && (
         <p className="max-w-[34ch] text-xs text-rose-300">
           {errorMessage ?? "Could not create wallet right now. Please try again."}
+        </p>
+      )}
+      {enabledEmbeddedChains.length > 0 && (
+        <p className="max-w-[42ch] text-[11px] text-white/60">
+          Dynamic env: {activeEnvironmentId}. Enabled embedded chains: {enabledEmbeddedChains.join(", ")}.
+        </p>
+      )}
+      {enabledEmbeddedChains.length === 0 && (
+        <p className="max-w-[42ch] text-[11px] text-amber-200">
+          Dynamic env: {activeEnvironmentId}. This environment reports no enabled embedded wallet chains.
         </p>
       )}
       {!dynamicWaasIsEnabled && (

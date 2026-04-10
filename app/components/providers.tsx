@@ -12,8 +12,7 @@ type ProvidersProps = {
 
 export function Providers({ children }: ProvidersProps) {
   const [mounted, setMounted] = useState(false);
-  const dynamicEnvironmentId =
-    process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID ?? "443c84bd-1386-4119-8abf-3693c9640caa";
+  const dynamicEnvironmentId = process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID?.trim();
 
   useEffect(() => {
     setMounted(true);
@@ -24,6 +23,16 @@ export function Providers({ children }: ProvidersProps) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!dynamicEnvironmentId) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center p-6">
+        <div className="max-w-xl rounded-2xl border border-white/15 bg-white/5 p-5 text-sm text-white/85">
+          Dynamic is not configured. Set `NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID` in your `.env` and restart the dev server.
+        </div>
       </div>
     );
   }

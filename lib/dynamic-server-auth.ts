@@ -1,13 +1,11 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const DYNAMIC_API_BASE = "https://app.dynamicauth.com/api/v0";
-const DEFAULT_DYNAMIC_ENVIRONMENT_ID = "443c84bd-1386-4119-8abf-3693c9640caa";
 
 const getDynamicEnvironmentId = () => {
   return (
     process.env.DYNAMIC_ENVIRONMENT_ID ??
-    process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID ??
-    DEFAULT_DYNAMIC_ENVIRONMENT_ID
+    process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID
   );
 };
 
@@ -33,6 +31,13 @@ export const verifyDynamicToken = async (
   }
 
   const environmentId = getDynamicEnvironmentId();
+  if (!environmentId) {
+    return {
+      dynamicUserId: null,
+      error: "Missing Dynamic environment id configuration.",
+    };
+  }
+
   const jwks = createRemoteJWKSet(
     new URL(`${DYNAMIC_API_BASE}/sdk/${environmentId}/.well-known/jwks`)
   );
