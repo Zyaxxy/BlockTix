@@ -3,12 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
+import {
+  useDynamicContext,
+  useIsLoggedIn,
+  useUserWallets,
+} from "@dynamic-labs/sdk-react-core";
 import {
   buildAvatarUrl,
   fetchUserProfile,
   type UserProfile,
 } from "@/lib/profile";
+import {
+  fetchOrganizerEvents,
+  type OrganizerEvent,
+} from "@/lib/events";
+import { CreateEventForm } from "@/app/components/ui/events/CreateEventForm";
 import {
   CalendarDays,
   ChartNoAxesCombined,
@@ -51,12 +60,6 @@ const launchpadActions = [
   },
 ] as const;
 
-const liveEvents = [
-  { event: "Solstice Sound 2026", sold: 512, supply: 700, revenue: "$43.4K", status: "Live" },
-  { event: "Code x Culture Summit", sold: 184, supply: 300, revenue: "$15.6K", status: "Pre-sale" },
-  { event: "Midnight Arena Finals", sold: 723, supply: 900, revenue: "$77.8K", status: "Live" },
-] as const;
-
 const metaplexIdeas = [
   {
     title: "Programmable Ticket Rules",
@@ -97,12 +100,15 @@ const metaplexIdeas = [
 ] as const;
 
 export default function OrganizerDashboard() {
-  const { user, handleLogOut } = useDynamicContext();
+  const { user, handleLogOut, primaryWallet } = useDynamicContext();
+  const userWallets = useUserWallets();
   const isLoggedIn = useIsLoggedIn();
   const router = useRouter();
 
   const [ready, setReady] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [events, setEvents] = useState<OrganizerEvent[]>([]);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -130,6 +136,10 @@ export default function OrganizerDashboard() {
         return;
       }
 
+      const organizerEvents = await fetchOrganizerEvents(uid);
+      if (!active) return;
+
+      setEvents(organizerEvents);
       setProfile(data);
       setReady(true);
     };
@@ -155,9 +165,55 @@ export default function OrganizerDashboard() {
   );
   const avatar = profile?.avatarUrl ?? buildAvatarUrl(displayName || user?.userId || "blocktix");
 
+  const liveEventCount = useMemo(
+    () => events.filter((event) => event.status === "live" || event.status === "pre_sale").length,
+    [events]
+  );
+
+  const totalMinted = useMemo(
+    () => events.reduce((sum, event) => sum + event.mintedCount, 0),
+    [events]
+  );
+
+  const totalSupply = useMemo(
+    () => events.reduce((sum, event) => sum + event.totalSupply, 0),
+    [events]
+  );
+
+  const totalPrimarySalesLamports = useMemo(
+    () => events.reduce((sum, event) => sum + event.mintedCount * event.priceLamports, 0),
+    [events]
+  );
+
+  const salesConversionPct = useMemo(() => {
+    if (totalSupply === 0) return 0;
+    return Math.round((totalMinted / totalSupply) * 1000) / 10;
+  }, [totalMinted, totalSupply]);
+
+  const topEvents = useMemo(() => events.slice(0, 3), [events]);
+
+  const wallets = useMemo(
+    () => [primaryWallet, ...userWallets].filter(Boolean),
+    [primaryWallet, userWallets]
+  );
+
   const onLogout = async () => {
     await handleLogOut?.();
     router.push("/login/organizer");
+  };
+
+  const onCreatedEvent = (event: OrganizerEvent) => {
+    setEvents((current) => [event, ...current]);
+  };
+
+  const formatSol = (lamports: number) => `${(lamports / 1_000_000_000).toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  })} SOL`;
+
+  const formatStatus = (status: OrganizerEvent["status"]) => {
+    if (status === "pre_sale") return "Pre-sale";
+    if (status === "sold_out") return "Sold Out";
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   if (!ready || !profile) {
@@ -206,7 +262,10 @@ export default function OrganizerDashboard() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <button className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-white/90">
+              <button
+                onClick={() => setIsCreateModalOpen(true)}
+                className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white px-5 py-2.5 text-sm font-semibold text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-70"
+              >
                 <Plus className="h-4 w-4" />
                 New Event
               </button>
@@ -223,23 +282,23 @@ export default function OrganizerDashboard() {
           <div className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="liquid-glass rounded-2xl p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-white/45">Live Events</p>
-              <p className="mt-3 text-3xl font-semibold">7</p>
-              <p className="mt-1 text-sm text-emerald-300">+2 this week</p>
+              <p className="mt-3 text-3xl font-semibold">{liveEventCount}</p>
+              <p className="mt-1 text-sm text-emerald-300">{events.length} total tracked</p>
             </div>
             <div className="liquid-glass rounded-2xl p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-white/45">Tickets Minted</p>
-              <p className="mt-3 text-3xl font-semibold">14,320</p>
-              <p className="mt-1 text-sm text-white/65">Across 12 collections</p>
+              <p className="mt-3 text-3xl font-semibold">{totalMinted.toLocaleString()}</p>
+              <p className="mt-1 text-sm text-white/65">Across {events.length} events</p>
             </div>
             <div className="liquid-glass rounded-2xl p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-white/45">Primary Sales</p>
-              <p className="mt-3 text-3xl font-semibold">$213.5K</p>
-              <p className="mt-1 text-sm text-amber-300">18.4% conversion</p>
+              <p className="mt-3 text-3xl font-semibold">{formatSol(totalPrimarySalesLamports)}</p>
+              <p className="mt-1 text-sm text-amber-300">{salesConversionPct}% conversion</p>
             </div>
             <div className="liquid-glass rounded-2xl p-4">
               <p className="text-xs uppercase tracking-[0.18em] text-white/45">Royalties Earned</p>
-              <p className="mt-3 text-3xl font-semibold">$18.2K</p>
-              <p className="mt-1 text-sm text-teal-300">Secondary market active</p>
+              <p className="mt-3 text-3xl font-semibold">Pending</p>
+              <p className="mt-1 text-sm text-teal-300">Secondary indexer not connected yet</p>
             </div>
           </div>
         </motion.section>
@@ -299,21 +358,28 @@ export default function OrganizerDashboard() {
             </div>
 
             <div className="mt-4 space-y-2">
-              {liveEvents.map((event) => (
-                <div key={event.event} className="liquid-glass rounded-xl p-3">
+              {topEvents.map((event) => (
+                <div key={event.id} className="liquid-glass rounded-xl p-3">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium text-white/92">{event.event}</p>
+                    <p className="text-sm font-medium text-white/92">{event.name}</p>
                     <span className="rounded-full border border-emerald-300/35 bg-emerald-300/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.12em] text-emerald-200">
-                      {event.status}
+                      {formatStatus(event.status)}
                     </span>
                   </div>
                   <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-white/65">
-                    <span>{event.sold}/{event.supply} sold</span>
-                    <span className="text-center">{event.revenue}</span>
-                    <span className="text-right">{Math.round((event.sold / event.supply) * 100)}%</span>
+                    <span>{event.mintedCount}/{event.totalSupply} sold</span>
+                    <span className="text-center">{formatSol(event.mintedCount * event.priceLamports)}</span>
+                    <span className="text-right">
+                      {event.totalSupply === 0 ? 0 : Math.round((event.mintedCount / event.totalSupply) * 100)}%
+                    </span>
                   </div>
                 </div>
               ))}
+              {topEvents.length === 0 && (
+                <div className="liquid-glass rounded-xl p-4 text-sm text-white/70">
+                  No events found yet. Click &quot;New Event&quot; to create your first draft.
+                </div>
+              )}
             </div>
           </motion.aside>
         </section>
@@ -366,6 +432,17 @@ export default function OrganizerDashboard() {
           </div>
         </motion.section>
       </main>
+
+      {profile && (
+        <CreateEventForm
+          open={isCreateModalOpen}
+          dynamicUserId={user?.userId ?? profile.uid}
+          organizerUid={profile.uid}
+          wallets={wallets}
+          onClose={() => setIsCreateModalOpen(false)}
+          onCreated={onCreatedEvent}
+        />
+      )}
     </div>
   );
 }
