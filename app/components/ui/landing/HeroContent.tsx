@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import BlurText from "./BlurText";
+import { HoverBorderGradient } from "../hover-border-gradient";
 
 function ArrowUpRightIcon({ className = "h-4 w-4" }: { className?: string }) {
     return (
@@ -85,10 +86,10 @@ export default function HeroContent() {
                         ))}
                     </div>
                     <Link
-                        href="/login"
+                        href="/login/organizer"
                         className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-black shadow-[0_8px_22px_rgba(0,0,0,0.22)]"
                     >
-                        Claim Access
+                        Launch Events
                         <ArrowUpRightIcon />
                     </Link>
                 </nav>
@@ -146,10 +147,10 @@ export default function HeroContent() {
                                 Discover events with programmable, verifiable tickets.
                             </p>
                             <Link
-                                href="/login"
+                                href="/login/organizer"
                                 className="liquid-glass-strong text-shadow-soft inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold text-white"
                             >
-                                Claim Access
+                                Launch Events
                                 <ArrowUpRightIcon />
                             </Link>
                         </motion.div>
@@ -187,7 +188,7 @@ export default function HeroContent() {
                     animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                     transition={{ duration: 0.6, delay: 0.8, ease: "easeOut" }}
                 >
-                    BlockTix turns every pass into a secure digital collectible, letting organizers launch with confidence and fans hold proof of attendance forever.
+                     Turn every pass into a secure digital collectible, letting organizers launch with confidence and fans hold proof of attendance forever.
                 </motion.p>
 
                 <motion.div
@@ -196,20 +197,22 @@ export default function HeroContent() {
                     animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                     transition={{ duration: 0.6, delay: 1.1, ease: "easeOut" }}
                 >
-                    <Link
+                    <HoverBorderGradient
+                        as={Link}
                         href="/login"
-                        className="liquid-glass-strong text-shadow-soft inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium text-white sm:w-auto"
+                        containerClassName="rounded-full"
+                        className="bg-white/90 text-md font-display transition hover:bg-white/100"
                     >
-                        Enter BlockTix
-                        <ArrowUpRightIcon />
-                    </Link>
-                    <button
+                        <span className="text-black rounded-full px-2 py-1.5">Enter the Experience</span>
+                        
+                    </HoverBorderGradient>
+                    {/* <button
                         type="button"
                         className="text-shadow-soft inline-flex items-center gap-2 text-sm font-medium text-white/90 transition hover:text-white"
                     >
                         <PlayIcon />
                         Watch Demo
-                    </button>
+                    </button> */}
                 </motion.div>
             </motion.div>
 
