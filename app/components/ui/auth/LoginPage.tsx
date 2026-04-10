@@ -2,27 +2,61 @@
 
 import {
   DynamicEmbeddedAuthFlow,
+  useDynamicWaas,
   useDynamicContext,
   useIsLoggedIn,
 } from "@dynamic-labs/sdk-react-core";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { fetchUserProfile, persistUserProfile } from "@/lib/profile";
 import ProfileForm from "./ProfileForm";
 import BackgroundShader from "../landing/BackgroundShader";
 
+const EMAIL_CREDENTIAL_FORMAT = "email";
+const BLOCKCHAIN_CREDENTIAL_FORMAT = "blockchain";
+const SOL_CHAIN = "SOL";
+
 export default function LoginPage() {
   const { user } = useDynamicContext();
   const isLoggedIn = useIsLoggedIn();
+  const { createWalletAccount, dynamicWaasIsEnabled } = useDynamicWaas();
   const router = useRouter();
   const [authStep, setAuthStep] = useState<"auth" | "profile">("auth");
+  const walletProvisionAttemptedForRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn || !user?.userId) return;
 
     const handlePostAuth = async () => {
       const uid = user.userId!;
+
+      const hasEmailCredential =
+        user.verifiedCredentials?.some(
+          (credential) => credential.format === EMAIL_CREDENTIAL_FORMAT
+        ) ?? false;
+      const hasBlockchainCredential =
+        user.verifiedCredentials?.some(
+          (credential) => credential.format === BLOCKCHAIN_CREDENTIAL_FORMAT
+        ) ?? false;
+
+      const shouldAutoCreateEmbeddedWallet =
+        dynamicWaasIsEnabled &&
+        hasEmailCredential &&
+        !hasBlockchainCredential &&
+        walletProvisionAttemptedForRef.current !== uid;
+
+      if (shouldAutoCreateEmbeddedWallet) {
+        walletProvisionAttemptedForRef.current = uid;
+
+        try {
+          await createWalletAccount(
+            [SOL_CHAIN] as Parameters<typeof createWalletAccount>[0]
+          );
+        } catch {
+          // Non-blocking: if this fails, users can still proceed and retry wallet creation later.
+        }
+      }
 
       const data = await fetchUserProfile(uid);
 
@@ -46,7 +80,7 @@ export default function LoginPage() {
     };
 
     handlePostAuth();
-  }, [isLoggedIn, user, router]);
+  }, [isLoggedIn, user, router, createWalletAccount, dynamicWaasIsEnabled]);
 
   return (
     <div className="fixed inset-0 min-h-screen bg-black text-white overflow-hidden">

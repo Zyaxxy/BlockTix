@@ -16,6 +16,7 @@ import {
   type UserTicketSale,
 } from "@/lib/events";
 import { MintButton } from "@/app/components/ui/events/MintButton";
+import { ClaimEmbeddedWalletButton } from "@/app/components/ui/auth/ClaimEmbeddedWalletButton";
 import { LogOut, Ticket, Wallet } from "lucide-react";
 
 export default function UserDashboard() {
@@ -137,13 +138,16 @@ export default function UserDashboard() {
                 Browse active drops and mint from Candy Machine directly with your wallet.
               </p>
             </div>
-            <button
-              onClick={onLogout}
-              className="inline-flex items-center gap-2 rounded-full border border-white/25 px-4 py-2 text-sm text-white/90 hover:bg-white/10"
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <ClaimEmbeddedWalletButton />
+              <button
+                onClick={onLogout}
+                className="inline-flex items-center gap-2 rounded-full border border-white/25 px-4 py-2 text-sm text-white/90 hover:bg-white/10"
+              >
+                <LogOut className="h-4 w-4" />
+                Logout
+              </button>
+            </div>
           </div>
 
           <div className="mt-6 grid gap-3 sm:grid-cols-3">

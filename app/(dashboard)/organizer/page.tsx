@@ -18,6 +18,7 @@ import {
   type OrganizerEvent,
 } from "@/lib/events";
 import { CreateEventForm } from "@/app/components/ui/events/CreateEventForm";
+import { ClaimEmbeddedWalletButton } from "@/app/components/ui/auth/ClaimEmbeddedWalletButton";
 import {
   CalendarDays,
   ChartNoAxesCombined,
@@ -269,6 +270,7 @@ export default function OrganizerDashboard() {
                 <Plus className="h-4 w-4" />
                 New Event
               </button>
+              <ClaimEmbeddedWalletButton />
               <button
                 onClick={onLogout}
                 className="liquid-glass inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/15"
