@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
-import { supabase } from "@/lib/supabase";
+import { fetchUserProfile } from "@/lib/profile";
 
 export default function UserDashboard() {
   const { user, handleLogOut } = useDynamicContext();
@@ -21,13 +21,9 @@ export default function UserDashboard() {
     if (!uid) return;
 
     const checkRole = async () => {
-      const { data, error } = await supabase
-        .from("users")
-        .select("role")
-        .eq("uid", uid)
-        .single();
+      const data = await fetchUserProfile(uid);
 
-      if (error || !data) {
+      if (!data) {
         router.replace("/login");
         return;
       }

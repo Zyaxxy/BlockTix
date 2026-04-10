@@ -8,7 +8,7 @@ import {
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/lib/supabase";
+import { fetchUserProfile, persistUserProfile } from "@/lib/profile";
 import ProfileForm from "./ProfileForm";
 import BackgroundShader from "../landing/BackgroundShader";
 
@@ -22,13 +22,9 @@ export default function OrganizerLoginPage() {
     if (!isLoggedIn || !user?.userId) return;
 
     const handlePostAuth = async () => {
-      const uid = user.userId;
+      const uid = user.userId!;
 
-      const { data } = await supabase
-        .from("users")
-        .select("role, name")
-        .eq("uid", uid)
-        .single();
+      const data = await fetchUserProfile(uid);
 
       if (data?.role === "user") {
         router.replace("/user");
@@ -36,9 +32,12 @@ export default function OrganizerLoginPage() {
       }
 
       if (data?.name) {
-        await supabase
-          .from("users")
-          .upsert({ uid, role: "organizer" }, { onConflict: "uid" });
+        await persistUserProfile({
+          uid,
+          role: "organizer",
+          name: data.name,
+          avatarUrl: data.avatarUrl ?? undefined,
+        });
         router.replace("/organizer");
         return;
       }
@@ -101,12 +100,8 @@ export default function OrganizerLoginPage() {
               <ProfileForm
                 key="profile"
                 userId={user?.userId ?? ""}
-                onComplete={async () => {
-                  await supabase
-                    .from("users")
-                    .upsert({ uid: user?.userId, role: "organizer" }, { onConflict: "uid" });
-                  router.replace("/organizer");
-                }}
+                role="organizer"
+                onComplete={() => router.replace("/organizer")}
               />
             )}
           </AnimatePresence>

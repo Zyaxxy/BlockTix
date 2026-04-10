@@ -2,15 +2,17 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { supabase } from "@/lib/supabase";
+import { buildAvatarUrl, persistUserProfile, UserRole } from "@/lib/profile";
 
 interface ProfileFormProps {
   userId: string;
+  role: UserRole;
   onComplete: () => void;
 }
 
-export default function ProfileForm({ userId, onComplete }: ProfileFormProps) {
+export default function ProfileForm({ userId, role, onComplete }: ProfileFormProps) {
   const [name, setName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -23,6 +25,8 @@ export default function ProfileForm({ userId, onComplete }: ProfileFormProps) {
       .toUpperCase()
       .slice(0, 2);
 
+  const previewAvatar = avatarUrl.trim() || buildAvatarUrl(name.trim() || userId);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -30,13 +34,17 @@ export default function ProfileForm({ userId, onComplete }: ProfileFormProps) {
     setLoading(true);
     setError("");
 
-    const { error: dbError } = await supabase.from("users").upsert(
-      { uid: userId, role: "user", name: name.trim() },
-      { onConflict: "uid" }
-    );
+    const cleanName = name.trim();
+    const cleanAvatar = avatarUrl.trim() || buildAvatarUrl(cleanName || userId);
+    const { error: dbError } = await persistUserProfile({
+      uid: userId,
+      role,
+      name: cleanName,
+      avatarUrl: cleanAvatar,
+    });
 
     if (dbError) {
-      setError("Something went wrong. Please try again.");
+      setError(dbError);
       setLoading(false);
       return;
     }
@@ -62,8 +70,15 @@ export default function ProfileForm({ userId, onComplete }: ProfileFormProps) {
 
       {/* Avatar preview */}
       <div className="flex justify-center mb-8">
-        <div className="h-20 w-20 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-2xl font-medium text-white/80 transition-all duration-300">
-          {name.trim() ? getInitials(name) : "?"}
+        <div className="relative h-24 w-24 rounded-full bg-white/10 border border-white/15 flex items-center justify-center overflow-hidden">
+          <div
+            aria-hidden="true"
+            className="h-full w-full bg-cover bg-center"
+            style={{ backgroundImage: `url(${previewAvatar})` }}
+          />
+          <div className="absolute inset-0 bg-black/20 flex items-center justify-center text-2xl font-semibold text-white/85 tracking-wide">
+            {getInitials(name || "?")}
+          </div>
         </div>
       </div>
 
@@ -85,6 +100,26 @@ export default function ProfileForm({ userId, onComplete }: ProfileFormProps) {
             autoFocus
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/25 focus:outline-none focus:border-white/25 transition-colors"
           />
+        </div>
+
+        <div>
+          <label
+            htmlFor="avatar"
+            className="block text-sm text-white/60 mb-2 font-light"
+          >
+            Avatar URL (optional)
+          </label>
+          <input
+            id="avatar"
+            type="url"
+            value={avatarUrl}
+            onChange={(e) => setAvatarUrl(e.target.value)}
+            placeholder="https://..."
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/25 focus:outline-none focus:border-white/25 transition-colors"
+          />
+          <p className="mt-2 text-xs text-white/45 font-light">
+            Leave this empty to auto-generate a unique organizer avatar.
+          </p>
         </div>
 
         {error && (

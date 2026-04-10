@@ -8,7 +8,7 @@ import {
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "@/lib/supabase";
+import { fetchUserProfile, persistUserProfile } from "@/lib/profile";
 import ProfileForm from "./ProfileForm";
 import BackgroundShader from "../landing/BackgroundShader";
 
@@ -22,13 +22,9 @@ export default function LoginPage() {
     if (!isLoggedIn || !user?.userId) return;
 
     const handlePostAuth = async () => {
-      const uid = user.userId;
+      const uid = user.userId!;
 
-      const { data } = await supabase
-        .from("users")
-        .select("role, name")
-        .eq("uid", uid)
-        .single();
+      const data = await fetchUserProfile(uid);
 
       if (data?.role === "organizer") {
         router.replace("/organizer");
@@ -36,9 +32,12 @@ export default function LoginPage() {
       }
 
       if (data?.name) {
-        await supabase
-          .from("users")
-          .upsert({ uid, role: "user" }, { onConflict: "uid" });
+        await persistUserProfile({
+          uid,
+          role: "user",
+          name: data.name,
+          avatarUrl: data.avatarUrl ?? undefined,
+        });
         router.replace("/user");
         return;
       }
@@ -101,6 +100,7 @@ export default function LoginPage() {
               <ProfileForm
                 key="profile"
                 userId={user?.userId ?? ""}
+                role="user"
                 onComplete={() => router.replace("/user")}
               />
             )}
