@@ -7,7 +7,7 @@ import {
   getSolanaWalletAdapterFromDynamicWallet,
   solToLamports,
   uploadTicketMetadataJson,
-} from "@/lib/candy-machine";
+} from "@/lib/solana/candy-machine";
 import {
   createDraftEvent,
   markEventAsLive,

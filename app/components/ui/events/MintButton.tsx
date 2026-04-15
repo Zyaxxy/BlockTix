@@ -1,47 +1,54 @@
 "use client";
 
 import { useState } from "react";
+import { useDynamicContext, useSwitchWallet } from "@dynamic-labs/sdk-react-core";
 import {
   createCandyMachineClient,
   fetchCandyMachineSummary,
   getSolanaWalletAdapterFromDynamicWallet,
   mintTicketFromCandyMachine,
-} from "@/lib/candy-machine";
+} from "@/lib/solana/candy-machine";
 import { recordTicketSale, type OrganizerEvent } from "@/lib/events";
 
 type MintButtonProps = {
   event: OrganizerEvent;
   dynamicUserId: string;
   wallets: unknown[];
+  preferredWalletAddress?: string;
+  preferredWalletId?: string;
   onMinted: (eventId: string, ticketMint: string) => void;
 };
 
-export function MintButton({ event, dynamicUserId, wallets, onMinted }: MintButtonProps) {
+export function MintButton({
+  event,
+  dynamicUserId,
+  wallets,
+  preferredWalletAddress,
+  preferredWalletId,
+  onMinted,
+}: MintButtonProps) {
+  const { primaryWallet } = useDynamicContext();
+  const switchWallet = useSwitchWallet();
   const [isMinting, setIsMinting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
 
   const canMint = Boolean(event.candyMachineId && event.status !== "ended" && event.status !== "cancelled");
 
+  const isActiveAccountAddressError = (value: unknown) => {
+    if (!(value instanceof Error)) return false;
+    return value.message.toLowerCase().includes("active account address is required");
+  };
+
+  const debugWalletLog = (...args: unknown[]) => {
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[mint-wallet-debug]", ...args);
+    }
+  };
+
   const mint = async () => {
     if (!event.candyMachineId) {
       setError("This event is not live on-chain yet.");
-      return;
-    }
-
-    let walletAdapter = null;
-    for (const wallet of wallets) {
-      walletAdapter = await getSolanaWalletAdapterFromDynamicWallet(
-        wallet as Parameters<typeof getSolanaWalletAdapterFromDynamicWallet>[0]
-      );
-
-      if (walletAdapter) {
-        break;
-      }
-    }
-
-    if (!walletAdapter) {
-      setError("Connect a Solana wallet to mint.");
       return;
     }
 
@@ -50,45 +57,193 @@ export function MintButton({ event, dynamicUserId, wallets, onMinted }: MintButt
     setWarning(null);
 
     try {
-      const umi = createCandyMachineClient(walletAdapter);
-      const summary = await fetchCandyMachineSummary(umi, event.candyMachineId);
-      if (!summary) {
-        throw new Error("Candy machine account could not be found on devnet.");
-      }
-
-      const mintResult = await mintTicketFromCandyMachine({
-        walletAdapter,
-        candyMachineAddress: event.candyMachineId,
-        collectionMintAddress: summary.collectionMint,
-        collectionUpdateAuthorityAddress: summary.authority,
-      });
-
-      const buyerWalletAddress =
-        (wallets.find((wallet) => Boolean((wallet as { address?: string } | null)?.address)) as
-          | { address?: string }
-          | undefined)?.address ??
-        walletAdapter.publicKey?.toBase58();
-
-      if (!buyerWalletAddress) {
-        throw new Error("Could not determine buyer wallet address.");
-      }
-
-      const saleResult = await recordTicketSale({
-        dynamicUserId,
+      debugWalletLog("mint-start", {
         eventId: event.id,
         candyMachineId: event.candyMachineId,
-        buyerWallet: buyerWalletAddress,
-        ticketMint: mintResult.ticketMintAddress,
-        priceLamports: event.priceLamports,
+        preferredWalletAddress,
+        preferredWalletId,
+        primaryWalletId: (primaryWallet as { id?: string } | null)?.id,
       });
 
-      if (saleResult.error) {
-        setWarning(
-          `Mint succeeded on-chain, but sale sync failed: ${saleResult.error}. Ticket mint: ${mintResult.ticketMintAddress}`
+      const walletCandidates = [primaryWallet, ...wallets] as Array<{
+        id?: string;
+        address?: string;
+        chain?: string;
+        key?: string;
+      }>;
+
+      const dedupedWalletCandidates = walletCandidates.filter((wallet, index, all) => {
+        if (!wallet) return false;
+
+        const walletKey = `${wallet.id ?? ""}:${wallet.address ?? ""}`;
+        return (
+          all.findIndex(
+            (item) => `${item?.id ?? ""}:${item?.address ?? ""}` === walletKey
+          ) === index
+        );
+      });
+
+      const preferredCandidates = dedupedWalletCandidates.filter(
+        (wallet) =>
+          (preferredWalletId && wallet.id === preferredWalletId) ||
+          (preferredWalletAddress &&
+            wallet.address?.toLowerCase() === preferredWalletAddress.toLowerCase())
+      );
+
+      const nonPreferredCandidates = dedupedWalletCandidates.filter(
+        (wallet) => !preferredCandidates.includes(wallet)
+      );
+
+      const rankedWalletCandidates = [
+        ...preferredCandidates,
+        ...nonPreferredCandidates.sort((left, right) => {
+        const scoreWallet = (wallet?: {
+          id?: string;
+          address?: string;
+          chain?: string;
+          key?: string;
+        }) => {
+          if (!wallet) return 0;
+
+          let score = 0;
+
+          if (preferredWalletId && wallet.id === preferredWalletId) {
+            score += 100;
+          }
+
+          if (
+            preferredWalletAddress &&
+            wallet.address?.toLowerCase() === preferredWalletAddress.toLowerCase()
+          ) {
+            score += 80;
+          }
+
+          if (wallet.chain?.toLowerCase() === "sol") {
+            score += 20;
+          }
+
+          if (wallet.key?.toLowerCase().includes("embedded")) {
+            score += 10;
+          }
+
+          return score;
+        };
+
+        return scoreWallet(right) - scoreWallet(left);
+      }),
+      ];
+
+      debugWalletLog(
+        "ranked-candidates",
+        rankedWalletCandidates.map((wallet) => ({
+          id: wallet.id,
+          address: wallet.address,
+          chain: wallet.chain,
+          key: wallet.key,
+        }))
+      );
+
+      let activeAddressErrorSeen = false;
+
+      for (const walletCandidate of rankedWalletCandidates) {
+        if (walletCandidate?.id) {
+          try {
+            await switchWallet(walletCandidate.id);
+            debugWalletLog("switch-wallet-success", {
+              walletId: walletCandidate.id,
+              walletAddress: walletCandidate.address,
+            });
+          } catch {
+            // If switching this wallet fails, try a different wallet instead of signing with a stale active account.
+            debugWalletLog("switch-wallet-failed", {
+              walletId: walletCandidate.id,
+              walletAddress: walletCandidate.address,
+            });
+            continue;
+          }
+        }
+
+        const walletAdapter = await getSolanaWalletAdapterFromDynamicWallet(
+          walletCandidate as Parameters<typeof getSolanaWalletAdapterFromDynamicWallet>[0]
+        );
+
+        if (!walletAdapter) {
+          debugWalletLog("adapter-missing", {
+            walletId: walletCandidate.id,
+            walletAddress: walletCandidate.address,
+          });
+          continue;
+        }
+
+        try {
+          const umi = createCandyMachineClient(walletAdapter);
+          const summary = await fetchCandyMachineSummary(umi, event.candyMachineId);
+          if (!summary) {
+            throw new Error("Candy machine account could not be found on devnet.");
+          }
+
+          const mintResult = await mintTicketFromCandyMachine({
+            walletAdapter,
+            candyMachineAddress: event.candyMachineId,
+            collectionMintAddress: summary.collectionMint,
+            collectionUpdateAuthorityAddress: summary.authority,
+          });
+
+          const buyerWalletAddress =
+            walletCandidate?.address ?? walletAdapter.publicKey?.toBase58();
+
+          if (!buyerWalletAddress) {
+            throw new Error("Could not determine buyer wallet address.");
+          }
+
+          const saleResult = await recordTicketSale({
+            dynamicUserId,
+            eventId: event.id,
+            candyMachineId: event.candyMachineId,
+            buyerWallet: buyerWalletAddress,
+            ticketMint: mintResult.ticketMintAddress,
+            priceLamports: event.priceLamports,
+          });
+
+          if (saleResult.error) {
+            setWarning(
+              `Mint succeeded on-chain, but sale sync failed: ${saleResult.error}. Ticket mint: ${mintResult.ticketMintAddress}`
+            );
+          }
+
+          onMinted(event.id, mintResult.ticketMintAddress);
+          debugWalletLog("mint-success", {
+            walletId: walletCandidate.id,
+            walletAddress: buyerWalletAddress,
+            ticketMint: mintResult.ticketMintAddress,
+          });
+          return;
+        } catch (mintError) {
+          if (isActiveAccountAddressError(mintError)) {
+            activeAddressErrorSeen = true;
+            debugWalletLog("active-account-address-required", {
+              walletId: walletCandidate.id,
+              walletAddress: walletCandidate.address,
+            });
+            continue;
+          }
+
+          debugWalletLog("mint-failed", {
+            walletId: walletCandidate.id,
+            walletAddress: walletCandidate.address,
+            error: mintError instanceof Error ? mintError.message : mintError,
+          });
+          throw mintError;
+        }
+      }
+
+      if (activeAddressErrorSeen) {
+        throw new Error(
+          "Select your embedded wallet as active in Dynamic, then try minting again."
         );
       }
 
-      onMinted(event.id, mintResult.ticketMintAddress);
+      throw new Error("Connect a Solana wallet to mint.");
     } catch (mintError) {
       setError(mintError instanceof Error ? mintError.message : "Mint failed.");
     } finally {

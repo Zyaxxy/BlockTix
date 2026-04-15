@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       "motion",
       "@dynamic-labs/sdk-react-core",
       "@dynamic-labs/solana",
+      "@dynamic-labs/sdk-api-core",
     ],
   },
 };

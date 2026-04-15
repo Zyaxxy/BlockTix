@@ -13,12 +13,12 @@ import {
   fetchUserProfile,
   type UserProfile,
 } from "@/lib/profile";
+import { formatSol } from "@/lib/shared/format";
 import {
   fetchOrganizerEvents,
   type OrganizerEvent,
 } from "@/lib/events";
 import { CreateEventForm } from "@/app/components/ui/events/CreateEventForm";
-import { ClaimEmbeddedWalletButton } from "@/app/components/ui/auth/ClaimEmbeddedWalletButton";
 import {
   CalendarDays,
   ChartNoAxesCombined,
@@ -207,10 +207,6 @@ export default function OrganizerDashboard() {
     setEvents((current) => [event, ...current]);
   };
 
-  const formatSol = (lamports: number) => `${(lamports / 1_000_000_000).toLocaleString(undefined, {
-    maximumFractionDigits: 2,
-  })} SOL`;
-
   const formatStatus = (status: OrganizerEvent["status"]) => {
     if (status === "pre_sale") return "Pre-sale";
     if (status === "sold_out") return "Sold Out";
@@ -270,7 +266,6 @@ export default function OrganizerDashboard() {
                 <Plus className="h-4 w-4" />
                 New Event
               </button>
-              <ClaimEmbeddedWalletButton />
               <button
                 onClick={onLogout}
                 className="liquid-glass inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition hover:bg-white/15"

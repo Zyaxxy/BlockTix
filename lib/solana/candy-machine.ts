@@ -1,9 +1,11 @@
 import {
   create,
-  fetchCandyMachine,
+  findCandyGuardPda,
   mintV2,
   mplCandyMachine,
+  safeFetchCandyGuard,
   safeFetchCandyMachine,
+  type DefaultGuardSetMintArgs,
   type CandyMachine,
 } from "@metaplex-foundation/mpl-candy-machine";
 import {
@@ -19,10 +21,12 @@ import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
 import {
   base58,
   generateSigner,
-  lamports,
+  isSome,
   none,
   percentAmount,
   publicKey,
+  some,
+  transactionBuilder,
   type PublicKey,
   type Umi,
 } from "@metaplex-foundation/umi";
@@ -32,12 +36,16 @@ import {
 } from "@metaplex-foundation/umi-signer-wallet-adapters";
 import { irysUploader } from "@metaplex-foundation/umi-uploader-irys";
 import {
+  Connection,
+  ComputeBudgetProgram,
   PublicKey as Web3JsPublicKey,
+  type TransactionInstruction,
   type Transaction,
   type VersionedTransaction,
 } from "@solana/web3.js";
 
 const DEFAULT_DEVNET_RPC = "https://api.devnet.solana.com";
+const SPL_TOKEN_PROGRAM_ID = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
 
 export type TicketMetadataInput = {
   name: string;
@@ -60,6 +68,10 @@ export type CandyMachineSummary = {
 type DynamicWalletLike = {
   address?: string;
   connector?: {
+    getActiveAccountAddress?: () => Promise<string | undefined>;
+    setActiveAccountAddress?: (address: string) => void | Promise<void>;
+    getWalletClientByAddress?: (input: { accountAddress: string }) => unknown;
+    validateActiveWallet?: (expectedAddress: string) => Promise<void>;
     signTransaction?: <T extends Transaction | VersionedTransaction>(transaction: T) => Promise<T>;
     signAllTransactions?: <T extends Transaction | VersionedTransaction>(transactions: T[]) => Promise<T[]>;
     signMessage?: (
@@ -130,6 +142,11 @@ export type MintTicketInput = {
   collectionUpdateAuthorityAddress: string;
 };
 
+type GuardSelectionResult = {
+  mintArgs: Partial<DefaultGuardSetMintArgs>;
+  group: string | null;
+};
+
 export const getRpcEndpoint = () => {
   return process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? DEFAULT_DEVNET_RPC;
 };
@@ -154,6 +171,37 @@ export const getSolanaWalletAdapterFromDynamicWallet = async (
   if (!address || !connector) {
     return null;
   }
+
+  const ensureActiveAccountAddress = async () => {
+    try {
+      const currentActiveAddress = await connector.getActiveAccountAddress?.();
+      if (currentActiveAddress?.toLowerCase() === address.toLowerCase()) {
+        return;
+      }
+    } catch {
+      // Continue with fallback synchronization strategies.
+    }
+
+    try {
+      await connector.setActiveAccountAddress?.(address);
+    } catch {
+      // Continue with fallback synchronization strategies.
+    }
+
+    try {
+      connector.getWalletClientByAddress?.({ accountAddress: address });
+    } catch {
+      // Best effort; some connectors don't expose this.
+    }
+
+    try {
+      await connector.validateActiveWallet?.(address);
+    } catch {
+      // Best effort; not all connectors expose this and some throw until first sign attempt.
+    }
+  };
+
+  await ensureActiveAccountAddress();
 
   let signer: {
     signTransaction?: <T extends Transaction | VersionedTransaction>(transaction: T) => Promise<T>;
@@ -180,17 +228,20 @@ export const getSolanaWalletAdapterFromDynamicWallet = async (
   const signTransaction = async <T extends Transaction | VersionedTransaction>(
     transaction: T
   ): Promise<T> => {
+    await ensureActiveAccountAddress();
     return signer.signTransaction!(transaction);
   };
 
   const signAllTransactions = signer.signAllTransactions
     ? async <T extends Transaction | VersionedTransaction>(transactions: T[]): Promise<T[]> => {
+        await ensureActiveAccountAddress();
         return signer.signAllTransactions!(transactions);
       }
     : undefined;
 
   const signMessage = signer.signMessage
     ? async (message: Uint8Array): Promise<Uint8Array> => {
+        await ensureActiveAccountAddress();
         const signed = await signer.signMessage!(message);
         return normalizeBytes(signed);
       }
@@ -248,26 +299,6 @@ export const fetchCandyMachineSummary = async (
   return mapCandyMachineSummary(address, data);
 };
 
-export const requireCandyMachineSummary = async (
-  umi: Umi,
-  candyMachineAddress: string
-): Promise<CandyMachineSummary> => {
-  const address = publicKey(candyMachineAddress);
-  const data = await fetchCandyMachine(umi, address);
-  return mapCandyMachineSummary(address, data);
-};
-
-const normalizeDate = (value?: string | Date) => {
-  if (!value) return null;
-
-  const date = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(date.valueOf())) {
-    return null;
-  }
-
-  return date;
-};
-
 const delay = async (ms: number) => {
   await new Promise((resolve) => setTimeout(resolve, ms));
 };
@@ -303,11 +334,192 @@ const assertTransactionConfirmed = (
   }
 };
 
+const toUmiWrappedInstruction = (instruction: TransactionInstruction) => ({
+  instruction: {
+    programId: publicKey(instruction.programId.toBase58()),
+    keys: instruction.keys.map((key) => ({
+      pubkey: publicKey(key.pubkey.toBase58()),
+      isSigner: key.isSigner,
+      isWritable: key.isWritable,
+    })),
+    data: new Uint8Array(instruction.data),
+  },
+  signers: [],
+  bytesCreatedOnChain: 0,
+});
+
+const extractInsufficientLamports = (logs: string[]) => {
+  for (const line of logs) {
+    const match = line.match(/insufficient lamports\s+(\d+),\s+need\s+(\d+)/i);
+    if (!match) {
+      continue;
+    }
+
+    const currentLamports = Number(match[1]);
+    const neededLamports = Number(match[2]);
+
+    if (!Number.isFinite(currentLamports) || !Number.isFinite(neededLamports)) {
+      continue;
+    }
+
+    return {
+      currentLamports,
+      neededLamports,
+      shortfallLamports: Math.max(0, neededLamports - currentLamports),
+    };
+  }
+
+  return null;
+};
+
+const resolveGuardSelection = (
+  candyGuard: NonNullable<Awaited<ReturnType<typeof safeFetchCandyGuard>>>
+): GuardSelectionResult => {
+  const candidates: Array<{ label: string | null; guards: typeof candyGuard.guards }> = [
+    { label: null, guards: candyGuard.guards },
+    ...candyGuard.groups.map((group) => ({ label: group.label, guards: group.guards })),
+  ];
+
+  const candidateFailures: string[] = [];
+
+  for (const candidate of candidates) {
+    const { guards } = candidate;
+    const mintArgs: Partial<DefaultGuardSetMintArgs> = {};
+    const unsupportedGuards: string[] = [];
+
+    if (isSome(guards.mintLimit)) {
+      const mintLimitValue = guards.mintLimit.value as { id: number };
+      mintArgs.mintLimit = { id: mintLimitValue.id };
+    }
+
+    if (isSome(guards.allocation)) {
+      const allocationValue = guards.allocation.value as { id: number };
+      mintArgs.allocation = { id: allocationValue.id };
+    }
+
+    if (isSome(guards.solPayment)) {
+      const solPaymentValue = guards.solPayment.value as { destination: PublicKey };
+      mintArgs.solPayment = {
+        destination: solPaymentValue.destination,
+      };
+    }
+
+    if (isSome(guards.tokenPayment)) {
+      const tokenPaymentValue = guards.tokenPayment.value as {
+        mint: PublicKey;
+        destinationAta: PublicKey;
+      };
+      mintArgs.tokenPayment = {
+        mint: tokenPaymentValue.mint,
+        destinationAta: tokenPaymentValue.destinationAta,
+      };
+    }
+
+    if (isSome(guards.token2022Payment)) {
+      const token2022PaymentValue = guards.token2022Payment.value as {
+        mint: PublicKey;
+        destinationAta: PublicKey;
+      };
+      mintArgs.token2022Payment = {
+        mint: token2022PaymentValue.mint,
+        destinationAta: token2022PaymentValue.destinationAta,
+      };
+    }
+
+    if (isSome(guards.tokenGate)) {
+      const tokenGateValue = guards.tokenGate.value as { mint: PublicKey };
+      mintArgs.tokenGate = {
+        mint: tokenGateValue.mint,
+      };
+    }
+
+    if (isSome(guards.tokenBurn)) {
+      const tokenBurnValue = guards.tokenBurn.value as { mint: PublicKey };
+      mintArgs.tokenBurn = {
+        mint: tokenBurnValue.mint,
+      };
+    }
+
+    if (isSome(guards.freezeSolPayment)) {
+      const freezeSolPaymentValue = guards.freezeSolPayment.value as {
+        destination: PublicKey;
+      };
+      mintArgs.freezeSolPayment = {
+        destination: freezeSolPaymentValue.destination,
+      };
+    }
+
+    if (isSome(guards.freezeTokenPayment)) {
+      const freezeTokenPaymentValue = guards.freezeTokenPayment.value as {
+        mint: PublicKey;
+        destinationAta: PublicKey;
+      };
+      mintArgs.freezeTokenPayment = {
+        mint: freezeTokenPaymentValue.mint,
+        destinationAta: freezeTokenPaymentValue.destinationAta,
+      };
+    }
+
+    if (isSome(guards.gatekeeper)) {
+      const gatekeeperValue = guards.gatekeeper.value as {
+        gatekeeperNetwork: PublicKey;
+        expireOnUse: boolean;
+      };
+      mintArgs.gatekeeper = {
+        gatekeeperNetwork: gatekeeperValue.gatekeeperNetwork,
+        expireOnUse: gatekeeperValue.expireOnUse,
+      };
+    }
+
+    if (isSome(guards.redeemedAmount)) {
+      mintArgs.redeemedAmount = {};
+    }
+
+    if (isSome(guards.allowList)) {
+      unsupportedGuards.push("allowList");
+    }
+
+    if (isSome(guards.nftGate)) {
+      unsupportedGuards.push("nftGate");
+    }
+
+    if (isSome(guards.nftPayment)) {
+      unsupportedGuards.push("nftPayment");
+    }
+
+    if (isSome(guards.nftBurn)) {
+      unsupportedGuards.push("nftBurn");
+    }
+
+    if (isSome(guards.thirdPartySigner)) {
+      unsupportedGuards.push("thirdPartySigner");
+    }
+
+    if (unsupportedGuards.length === 0) {
+      return {
+        mintArgs,
+        group: candidate.label,
+      };
+    }
+
+    candidateFailures.push(
+      `${candidate.label ?? "default"}: ${unsupportedGuards.join(", ")}`
+    );
+  }
+
+  throw new Error(
+    `No candy guard set can be satisfied automatically for this wallet. Unsupported guards by group: ${candidateFailures.join(
+      " | "
+    )}.`
+  );
+};
+
 const assertCollectionNftAccounts = async (
   umi: Umi,
   collectionMint: PublicKey,
   collectionMetadata: ReturnType<typeof findMetadataPda>,
-  collectionMasterEdition: ReturnType<typeof findMasterEditionPda>
+  collectionMasterEdition: ReturnType<typeof findMasterEditionPda>,
+  expectedUpdateAuthority: PublicKey
 ) => {
   const maxAttempts = 20;
   const retryDelayMs = 500;
@@ -315,6 +527,7 @@ const assertCollectionNftAccounts = async (
     "mplTokenMetadata",
     publicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s")
   );
+  const splTokenProgram = publicKey(SPL_TOKEN_PROGRAM_ID);
 
   let lastStatus = "unknown";
 
@@ -328,6 +541,8 @@ const assertCollectionNftAccounts = async (
       masterEditionConfirmedRaw,
       metadataAccount,
       masterEditionAccount,
+      metadataAccountFinalized,
+      masterEditionAccountFinalized,
     ] =
       await Promise.all([
         umi.rpc.getAccount(collectionMint, { commitment: "finalized" }),
@@ -338,19 +553,31 @@ const assertCollectionNftAccounts = async (
         umi.rpc.getAccount(collectionMasterEdition[0], { commitment: "confirmed" }),
         safeFetchMetadata(umi, collectionMetadata, { commitment: "confirmed" }),
         safeFetchMasterEdition(umi, collectionMasterEdition, { commitment: "confirmed" }),
+        safeFetchMetadata(umi, collectionMetadata, { commitment: "finalized" }),
+        safeFetchMasterEdition(umi, collectionMasterEdition, { commitment: "finalized" }),
       ]);
 
     const metadataOwnerOk =
-      metadataConfirmedRaw.exists &&
-      metadataConfirmedRaw.owner.toString() === mplTokenMetadataProgram.toString();
+      metadataFinalizedRaw.exists &&
+      metadataFinalizedRaw.owner.toString() === mplTokenMetadataProgram.toString();
     const masterEditionOwnerOk =
-      masterEditionConfirmedRaw.exists &&
-      masterEditionConfirmedRaw.owner.toString() === mplTokenMetadataProgram.toString();
-    const collectionMintExists = collectionMintConfirmedRaw.exists;
+      masterEditionFinalizedRaw.exists &&
+      masterEditionFinalizedRaw.owner.toString() === mplTokenMetadataProgram.toString();
+    const collectionMintExists = collectionMintFinalizedRaw.exists;
+    const collectionMintOwnerOk =
+      collectionMintFinalizedRaw.exists &&
+      collectionMintFinalizedRaw.owner.toString() === splTokenProgram.toString();
+    const metadataUpdateAuthority = metadataAccountFinalized
+      ? metadataAccountFinalized.updateAuthority.toString()
+      : null;
+    const metadataUpdateAuthorityOk =
+      metadataUpdateAuthority === expectedUpdateAuthority.toString();
 
     const rawOwnerCheckPassed =
-      collectionMintExists && metadataOwnerOk && masterEditionOwnerOk;
-    const typedCheckPassed = Boolean(metadataAccount && masterEditionAccount);
+      collectionMintExists && collectionMintOwnerOk && metadataOwnerOk && masterEditionOwnerOk;
+    const typedCheckPassed =
+      Boolean(metadataAccountFinalized && masterEditionAccountFinalized) &&
+      metadataUpdateAuthorityOk;
 
     if (rawOwnerCheckPassed && typedCheckPassed) {
       return;
@@ -364,6 +591,7 @@ const assertCollectionNftAccounts = async (
       collectionMintOwner: collectionMintConfirmedRaw.exists
         ? collectionMintConfirmedRaw.owner.toString()
         : null,
+      collectionMintOwnerExpected: splTokenProgram.toString(),
       collectionMintExistsFinalized: collectionMintFinalizedRaw.exists,
       metadataPda: collectionMetadata[0].toString(),
       metadataExists: metadataConfirmedRaw.exists,
@@ -372,6 +600,11 @@ const assertCollectionNftAccounts = async (
         : null,
       metadataExistsFinalized: metadataFinalizedRaw.exists,
       metadataDecoded: Boolean(metadataAccount),
+      metadataDecodedFinalized: Boolean(metadataAccountFinalized),
+      metadataUpdateAuthority: metadataAccountFinalized
+        ? metadataUpdateAuthority
+        : null,
+      metadataUpdateAuthorityExpected: expectedUpdateAuthority.toString(),
       masterEditionPda: collectionMasterEdition[0].toString(),
       masterEditionExists: masterEditionConfirmedRaw.exists,
       masterEditionOwner: masterEditionConfirmedRaw.exists
@@ -379,6 +612,7 @@ const assertCollectionNftAccounts = async (
         : null,
       masterEditionExistsFinalized: masterEditionFinalizedRaw.exists,
       masterEditionDecoded: Boolean(masterEditionAccount),
+      masterEditionDecodedFinalized: Boolean(masterEditionAccountFinalized),
       expectedOwner: mplTokenMetadataProgram.toString(),
     });
 
@@ -404,6 +638,7 @@ export const deployCandyMachineForEvent = async (
       mint: collectionMint,
       authority: umi.identity,
       updateAuthority: umi.identity.publicKey,
+      splTokenProgram: publicKey(SPL_TOKEN_PROGRAM_ID),
       name: `${input.eventName} Collection`,
       symbol: input.symbol,
       uri: input.metadataUri,
@@ -429,12 +664,11 @@ export const deployCandyMachineForEvent = async (
       umi,
       collectionMint.publicKey,
       collectionMetadata,
-      collectionMasterEdition
+      collectionMasterEdition,
+      umi.identity.publicKey
     );
 
     const candyMachine = generateSigner(umi);
-    const saleStart = normalizeDate(input.saleStartsAt);
-    const saleEnd = normalizeDate(input.saleEndsAt);
 
     const candyMachineCreateResult = await (
       await create(umi, {
@@ -458,28 +692,6 @@ export const deployCandyMachineForEvent = async (
           name: `${input.eventName} #`,
           uri: input.metadataUri,
           hash: new Uint8Array(32),
-        },
-        guards: {
-          solPayment: {
-            lamports: lamports(input.priceLamports),
-            destination: umi.identity.publicKey,
-          },
-          mintLimit:
-            input.mintLimitPerWallet && input.mintLimitPerWallet > 0
-              ? {
-                  id: 1,
-                  limit: input.mintLimitPerWallet,
-                }
-              : undefined,
-          startDate: saleStart ? { date: saleStart } : undefined,
-          endDate: saleEnd ? { date: saleEnd } : undefined,
-          botTax:
-            input.botTaxLamports && input.botTaxLamports > 0
-              ? {
-                  lamports: lamports(input.botTaxLamports),
-                  lastInstruction: true,
-                }
-              : undefined,
         },
       })
     ).sendAndConfirm(umi);
@@ -514,20 +726,145 @@ export const deployCandyMachineForEvent = async (
 
 export const mintTicketFromCandyMachine = async (
   input: MintTicketInput
-): Promise<{ ticketMintAddress: string }> => {
+): Promise<{ ticketMintAddress: string; mintSignature: string }> => {
   const umi = createCandyMachineClient(input.walletAdapter);
   const nftMint = generateSigner(umi);
+  const candyMachineAddress = publicKey(input.candyMachineAddress);
 
-  await mintV2(umi, {
-    candyMachine: publicKey(input.candyMachineAddress),
+  // Guard-aware minting: choose a compatible guard set and pass all
+  // deterministic mint args so required remaining accounts are derived.
+  const candyGuardPda = findCandyGuardPda(umi, { base: candyMachineAddress });
+  const candyGuard = await safeFetchCandyGuard(umi, candyGuardPda);
+  const guardSelection = candyGuard
+    ? resolveGuardSelection(candyGuard)
+    : { mintArgs: {} as Partial<DefaultGuardSetMintArgs>, group: null };
+
+  const mintBuilder = mintV2(umi, {
+    candyMachine: candyMachineAddress,
+    candyGuard: candyGuard ? candyGuardPda : undefined,
     collectionMint: publicKey(input.collectionMintAddress),
     collectionUpdateAuthority: publicKey(input.collectionUpdateAuthorityAddress),
     nftMint,
     tokenStandard: TokenStandard.NonFungible,
-  }).sendAndConfirm(umi);
+    mintArgs: guardSelection.mintArgs,
+    group: guardSelection.group ? some(guardSelection.group) : none(),
+  });
+
+  let mintResult: Awaited<ReturnType<ReturnType<typeof transactionBuilder>["sendAndConfirm"]>>;
+
+  try {
+    mintResult = await transactionBuilder()
+      .add(
+        toUmiWrappedInstruction(
+          ComputeBudgetProgram.setComputeUnitLimit({ units: 1_000_000 })
+        )
+      )
+      .add(
+        toUmiWrappedInstruction(
+          ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1 })
+        )
+      )
+      .add(mintBuilder)
+      .sendAndConfirm(umi);
+  } catch (error) {
+    const sendError = error as {
+      getLogs?: () => Promise<string[]>;
+      message?: string;
+    };
+
+    let logs: string[] = [];
+
+    if (typeof sendError.getLogs === "function") {
+      try {
+        logs = await sendError.getLogs();
+      } catch {
+        logs = [];
+      }
+    }
+
+    if (logs.length > 0) {
+      const insufficientLamports = extractInsufficientLamports(logs);
+
+      if (insufficientLamports) {
+        const currentSol = (insufficientLamports.currentLamports / 1_000_000_000).toFixed(6);
+        const neededSol = (insufficientLamports.neededLamports / 1_000_000_000).toFixed(6);
+        const shortfallSol = (insufficientLamports.shortfallLamports / 1_000_000_000).toFixed(6);
+
+        throw new Error(
+          `Insufficient SOL to mint. Wallet balance is ${insufficientLamports.currentLamports} lamports (${currentSol} SOL), but at least ${insufficientLamports.neededLamports} lamports (${neededSol} SOL) is required. Top up at least ${insufficientLamports.shortfallLamports} lamports (${shortfallSol} SOL) and retry.`
+        );
+      }
+
+      throw new Error(
+        `Mint transaction simulation failed. ${sendError.message ?? "Unknown send error"}\n${logs.join("\n")}`
+      );
+    }
+
+    throw error;
+  }
+
+  const mintSignature = toBase58Signature(mintResult.signature);
+  assertTransactionConfirmed("mint_v2", mintSignature, mintResult.result);
+
+  const rpc = new Connection(getRpcEndpoint(), "confirmed");
+  const mintPublicKey = new Web3JsPublicKey(nftMint.publicKey.toString());
+  const maxVerificationAttempts = 3;
+  let mintAccountExists = false;
+  let hasTokenHolder = false;
+
+  for (let attempt = 1; attempt <= maxVerificationAttempts; attempt += 1) {
+    const [mintAccountInfo, largestTokenAccounts] = await Promise.all([
+      rpc.getParsedAccountInfo(mintPublicKey, "confirmed"),
+      rpc.getTokenLargestAccounts(mintPublicKey, "confirmed"),
+    ]);
+
+    mintAccountExists = Boolean(mintAccountInfo.value);
+    hasTokenHolder = largestTokenAccounts.value.some(
+      (entry) => entry.uiAmount !== null && entry.uiAmount > 0
+    );
+
+    if (mintAccountExists && hasTokenHolder) {
+      break;
+    }
+
+    if (attempt < maxVerificationAttempts) {
+      await delay(450);
+    }
+  }
+
+  if (!mintAccountExists || !hasTokenHolder) {
+    const txDetails = await rpc.getTransaction(mintSignature, {
+      commitment: "confirmed",
+      maxSupportedTransactionVersion: 0,
+    });
+
+    const logs = txDetails?.meta?.logMessages ?? [];
+    const combinedLogs = logs.join("\n");
+    const guardBlocked =
+      combinedLogs.includes("MissingRemainingAccount") ||
+      combinedLogs.toLowerCase().includes("candy guard botting is taxed") ||
+      combinedLogs.toLowerCase().includes("instruction: mintv2");
+
+    if (guardBlocked) {
+      throw new Error(
+        `Mint transaction was finalized but Candy Guard blocked the mint (bot tax likely charged). Use a newly deployed unguarded candy machine. tx=${mintSignature} mint=${mintPublicKey.toBase58()}`
+      );
+    }
+
+    if (!mintAccountExists) {
+      throw new Error(
+        `Mint transaction confirmed but mint account was not found on RPC. tx=${mintSignature} mint=${mintPublicKey.toBase58()}`
+      );
+    }
+
+    throw new Error(
+      `Mint transaction confirmed but no holder token account has a positive balance yet. tx=${mintSignature} mint=${mintPublicKey.toBase58()}`
+    );
+  }
 
   return {
     ticketMintAddress: nftMint.publicKey.toString(),
+    mintSignature,
   };
 };
 

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 import BlurText from "./BlurText";
-import { HoverBorderGradient } from "../hover-border-gradient";
+import { HoverBorderGradient } from "../effects/hover-border-gradient";
 
 function ArrowUpRightIcon({ className = "h-4 w-4" }: { className?: string }) {
     return (

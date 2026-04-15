@@ -2,6 +2,10 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 
 const DYNAMIC_API_BASE = "https://app.dynamicauth.com/api/v0";
 
+if (typeof window !== "undefined") {
+  throw new Error("lib/dynamic-server-auth.ts can only be imported on the server.");
+}
+
 const getDynamicEnvironmentId = () => {
   return (
     process.env.DYNAMIC_ENVIRONMENT_ID ??

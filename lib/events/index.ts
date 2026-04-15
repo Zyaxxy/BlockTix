@@ -1,38 +1,18 @@
-import { createClient } from "@/utils/supabase/client";
+import { getSupabaseBrowserClient } from "@/utils/supabase/client";
 import { getAuthToken } from "@dynamic-labs/sdk-react-core";
-
-const supabase = createClient();
-
-const EVENTS_TABLE = "events";
-const TICKET_SALES_TABLE = "ticket_sales";
+import {
+  EVENT_SELECT,
+  EVENTS_TABLE,
+  TICKET_SALES_TABLE,
+  normalizeEvent,
+  type OrganizerEvent,
+} from "./normalize-event";
+import { createTableGuard } from "../supabase/table-guard";
 
 const MISSING_EVENTS_TABLE_ERROR =
   "Supabase table public.events is missing. Run the event ticketing migration and retry.";
 
-let missingEventsTableDetected = false;
-
-export type EventStatus = "draft" | "live" | "pre_sale" | "sold_out" | "ended" | "cancelled";
-
-export type OrganizerEvent = {
-  id: string;
-  candyMachineId: string | null;
-  organizerUid: string;
-  name: string;
-  venue: string | null;
-  description: string | null;
-  eventDate: string | null;
-  endDate: string | null;
-  imageUrl: string | null;
-  metadataUri: string | null;
-  category: string | null;
-  tags: string[];
-  status: EventStatus;
-  totalSupply: number;
-  priceLamports: number;
-  mintedCount: number;
-  createdAt: string;
-  updatedAt: string;
-};
+const eventTableGuard = createTableGuard(EVENTS_TABLE);
 
 export type CreateDraftEventInput = {
   dynamicUserId: string;
@@ -47,13 +27,6 @@ export type CreateDraftEventInput = {
   imageUrl?: string;
   category?: string;
   tags?: string[];
-};
-
-export type EventSalesSnapshot = {
-  eventId: string;
-  sold: number;
-  supply: number;
-  revenueLamports: number;
 };
 
 export type UserTicketSale = {
@@ -109,73 +82,25 @@ const callApi = async <T>(
   return { data: payload.data, error: null };
 };
 
-const isMissingEventsTableError = (errorMessage: string | undefined) => {
-  if (!errorMessage) return false;
-
-  const message = errorMessage.toLowerCase();
-  return (
-    message.includes("public.events") ||
-    message.includes("could not find the table") ||
-    (message.includes("relation") && message.includes("events") && message.includes("does not exist"))
-  );
-};
-
-const normalizeEvent = (row: {
-  id: string;
-  candy_machine_id: string | null;
-  organizer_uid: string;
-  name: string;
-  venue: string | null;
-  description: string | null;
-  event_date: string | null;
-  end_date: string | null;
-  image_url: string | null;
-  metadata_uri: string | null;
-  category: string | null;
-  tags: string[] | null;
-  status: EventStatus;
-  total_supply: number;
-  price_lamports: number;
-  minted_count: number;
-  created_at: string;
-  updated_at: string;
-}): OrganizerEvent => ({
-  id: row.id,
-  candyMachineId: row.candy_machine_id,
-  organizerUid: row.organizer_uid,
-  name: row.name,
-  venue: row.venue,
-  description: row.description,
-  eventDate: row.event_date,
-  endDate: row.end_date,
-  imageUrl: row.image_url,
-  metadataUri: row.metadata_uri,
-  category: row.category,
-  tags: row.tags ?? [],
-  status: row.status,
-  totalSupply: row.total_supply,
-  priceLamports: row.price_lamports,
-  mintedCount: row.minted_count,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-});
-
 export const fetchOrganizerEvents = async (organizerUid: string): Promise<OrganizerEvent[]> => {
-  if (missingEventsTableDetected) {
+  if (eventTableGuard.isTableMissing()) {
+    return [];
+  }
+
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) {
     return [];
   }
 
   const { data, error } = await supabase
     .from(EVENTS_TABLE)
-    .select(
-      "id, candy_machine_id, organizer_uid, name, venue, description, event_date, end_date, image_url, metadata_uri, category, tags, status, total_supply, price_lamports, minted_count, created_at, updated_at"
-    )
+    .select(EVENT_SELECT)
     .eq("organizer_uid", organizerUid)
     .order("created_at", { ascending: false });
 
   if (error) {
-    if (isMissingEventsTableError(error.message)) {
-      missingEventsTableDetected = true;
+    if (eventTableGuard.isMissingTableError(error.message)) {
+      eventTableGuard.markTableMissing();
     }
     return [];
   }
@@ -186,7 +111,7 @@ export const fetchOrganizerEvents = async (organizerUid: string): Promise<Organi
 export const createDraftEvent = async (
   input: CreateDraftEventInput
 ): Promise<{ data: OrganizerEvent | null; error: string | null }> => {
-  if (missingEventsTableDetected) {
+  if (eventTableGuard.isTableMissing()) {
     return { data: null, error: MISSING_EVENTS_TABLE_ERROR };
   }
 
@@ -201,21 +126,24 @@ export const createDraftEvent = async (
 };
 
 export const fetchLiveEvents = async (): Promise<OrganizerEvent[]> => {
-  if (missingEventsTableDetected) {
+  if (eventTableGuard.isTableMissing()) {
+    return [];
+  }
+
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) {
     return [];
   }
 
   const { data, error } = await supabase
     .from(EVENTS_TABLE)
-    .select(
-      "id, candy_machine_id, organizer_uid, name, venue, description, event_date, end_date, image_url, metadata_uri, category, tags, status, total_supply, price_lamports, minted_count, created_at, updated_at"
-    )
+    .select(EVENT_SELECT)
     .in("status", ["live", "pre_sale"])
     .order("event_date", { ascending: true, nullsFirst: false });
 
   if (error) {
-    if (isMissingEventsTableError(error.message)) {
-      missingEventsTableDetected = true;
+    if (eventTableGuard.isMissingTableError(error.message)) {
+      eventTableGuard.markTableMissing();
     }
     return [];
   }
@@ -286,6 +214,11 @@ export const recordTicketSale = async ({
 export const fetchUserTicketSales = async (
   buyerWallet: string
 ): Promise<UserTicketSale[]> => {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) {
+    return [];
+  }
+
   const { data, error } = await supabase
     .from(TICKET_SALES_TABLE)
     .select("id, event_id, candy_machine_id, ticket_mint, price_lamports, minted_at, events(name)")
@@ -319,11 +252,5 @@ export const fetchUserTicketSales = async (
   );
 };
 
-export const summarizeSales = (events: OrganizerEvent[]): EventSalesSnapshot[] => {
-  return events.map((event) => ({
-    eventId: event.id,
-    sold: event.mintedCount,
-    supply: event.totalSupply,
-    revenueLamports: event.mintedCount * event.priceLamports,
-  }));
-};
+export { EVENT_SELECT, EVENTS_TABLE, TICKET_SALES_TABLE, normalizeEvent } from "./normalize-event";
+export type { EventStatus, OrganizerEvent } from "./normalize-event";

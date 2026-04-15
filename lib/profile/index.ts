@@ -1,11 +1,11 @@
-import { createClient } from "@/utils/supabase/client";
+import { getSupabaseBrowserClient } from "@/utils/supabase/client";
+import { createTableGuard } from "../supabase/table-guard";
 
-const supabase = createClient();
-const USERS_TABLE = "users";
+export const USERS_TABLE = "users";
 const MISSING_USERS_TABLE_ERROR =
   "Supabase table public.users is missing. Create it in Supabase SQL Editor and retry.";
 
-let missingUsersTableDetected = false;
+const usersTableGuard = createTableGuard(USERS_TABLE);
 
 export type UserRole = "user" | "organizer";
 
@@ -60,24 +60,18 @@ const cacheProfile = (
 const isMissingColumnError = (errorMessage: string | undefined, column: string) =>
   Boolean(errorMessage?.toLowerCase().includes(column.toLowerCase()));
 
-const isMissingUsersTableError = (errorMessage: string | undefined) => {
-  if (!errorMessage) return false;
-
-  const message = errorMessage.toLowerCase();
-  return (
-    message.includes("public.users") ||
-    message.includes("could not find the table") ||
-    message.includes("relation") && message.includes("users") && message.includes("does not exist")
-  );
-};
-
 export const buildAvatarUrl = (seed: string) => {
   const safeSeed = encodeURIComponent(seed.trim() || "blocktix");
   return `https://api.dicebear.com/9.x/shapes/svg?seed=${safeSeed}&backgroundType=gradientLinear&backgroundColor=f97316,f59e0b,1f2937`;
 };
 
 export const fetchUserProfile = async (uid: string): Promise<UserProfile | null> => {
-  if (missingUsersTableDetected) {
+  if (usersTableGuard.isTableMissing()) {
+    return null;
+  }
+
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) {
     return null;
   }
 
@@ -105,8 +99,8 @@ export const fetchUserProfile = async (uid: string): Promise<UserProfile | null>
     return profile;
   }
 
-  if (isMissingUsersTableError(withAvatarError?.message)) {
-    missingUsersTableDetected = true;
+  if (usersTableGuard.isMissingTableError(withAvatarError?.message)) {
+    usersTableGuard.markTableMissing();
     return null;
   }
 
@@ -120,8 +114,8 @@ export const fetchUserProfile = async (uid: string): Promise<UserProfile | null>
     .eq("uid", uid)
     .maybeSingle();
 
-  if (isMissingUsersTableError(fallbackError?.message)) {
-    missingUsersTableDetected = true;
+  if (usersTableGuard.isMissingTableError(fallbackError?.message)) {
+    usersTableGuard.markTableMissing();
     return null;
   }
 
@@ -148,8 +142,13 @@ export const persistUserProfile = async ({
   name,
   avatarUrl,
 }: PersistUserProfileInput) => {
-  if (missingUsersTableDetected) {
+  if (usersTableGuard.isTableMissing()) {
     return { error: MISSING_USERS_TABLE_ERROR };
+  }
+
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) {
+    return { error: "Supabase client is not configured. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY." };
   }
 
   const cleanName = name.trim();
@@ -178,8 +177,8 @@ export const persistUserProfile = async ({
     return { error: null as string | null };
   }
 
-  if (isMissingUsersTableError(withAvatarError?.message)) {
-    missingUsersTableDetected = true;
+  if (usersTableGuard.isMissingTableError(withAvatarError?.message)) {
+    usersTableGuard.markTableMissing();
     return { error: MISSING_USERS_TABLE_ERROR };
   }
 
@@ -191,8 +190,8 @@ export const persistUserProfile = async ({
     .from(USERS_TABLE)
     .upsert(basePayload, { onConflict: "uid" });
 
-  if (isMissingUsersTableError(fallbackError?.message)) {
-    missingUsersTableDetected = true;
+  if (usersTableGuard.isMissingTableError(fallbackError?.message)) {
+    usersTableGuard.markTableMissing();
     return { error: MISSING_USERS_TABLE_ERROR };
   }
 
