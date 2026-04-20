@@ -6,6 +6,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 BlockTix is a decentralized ticketing system with Auction functionality built on Solana. It uses Anchor for smart contracts and Next.js for the frontend.
 
+## Environment Setup
+
+Copy `.env.example` to `.env.local` and configure:
+
+```bash
+cp .env.example .env.local
+```
+
+Required variables:
+- `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` - Supabase project credentials
+- `SUPABASE_SERVICE_ROLE_KEY` - Server-side Supabase operations (optional, for admin operations)
+- `NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID` / `DYNAMIC_ENVIRONMENT_ID` - Dynamic Labs wallet authentication
+- `NEXT_PUBLIC_SOLANA_RPC_URL` - Solana RPC endpoint (defaults to devnet)
+
 ## Architecture
 
 ### Frontend (Next.js App Router)
@@ -19,6 +33,23 @@ BlockTix is a decentralized ticketing system with Auction functionality built on
 - **Wallet**: Dynamic Labs SDK (`@dynamic-labs/sdk-react-core` + `@dynamic-labs/solana`) for Solana wallet connection
 - **UI Components**: Framer Motion for animations, shadcn/ui components
 - **Client Generation**: Codama generates TypeScript clients from Anchor IDL to `app/generated/`
+
+### Key UI Components (`app/components/ui/`)
+- **auth/**: `ProfileForm.tsx`, `AuthPageShell.tsx`, `LoginPage.tsx`, `OrganizerLoginPage.tsx`
+- **events/**: `MintButton.tsx` (ticket minting), `CreateEventForm.tsx` (event creation)
+- **landing/**: `BackgroundShader.tsx`, `HeroContent.tsx`, `LoadingScreen.tsx`, `BlurText.tsx`
+- **effects/**: `hover-border-gradient.tsx`
+- **Root**: `providers.tsx` (Dynamic Labs wallet provider setup)
+
+### Core Libraries (`lib/`)
+- **solana/candy-machine.ts**: Metaplex Candy Machine integration for ticket minting
+  - `deployCandyMachineForEvent()` - Creates collection NFT and candy machine for events
+  - `mintTicketFromCandyMachine()` - Mints tickets with guard-aware logic
+  - `getSolanaWalletAdapterFromDynamicWallet()` - Bridges Dynamic wallet to Metaplex UMI
+- **events/normalize-event.ts**: Event data normalization between snake_case (DB) and camelCase (app)
+- **profile/index.ts**: User profile management with Supabase + localStorage caching
+- **supabase/**: Database client (`client.ts`) and admin utilities (`admin.ts`, `table-guard.ts`)
+- **auth/dynamic-server-auth.ts**: Server-side Dynamic Labs authentication
 
 ### Smart Contract (Anchor)
 - **Program**: Auction system at `GPfsmgJRLLxaWScL2PPEt5TAgAjzNYTaMuzmsPipnfSv` on devnet
@@ -40,11 +71,11 @@ BlockTix is a decentralized ticketing system with Auction functionality built on
 
 ### Development
 ```bash
-# Run dev server with webpack (default)
+# Run dev server (turbopack - preferred, faster and more reliable)
 pnpm run dev
 
-# Run dev server with turbopack (faster)
-pnpm run dev:turbopack
+# Run dev server with webpack (alternative)
+pnpm run dev:webpack
 ```
 
 ### Anchor Smart Contract

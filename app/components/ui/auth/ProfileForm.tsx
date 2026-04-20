@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { buildAvatarUrl, persistUserProfile, UserRole } from "@/lib/profile";
+import { ImageUpload } from "../shared/ImageUpload";
 
 interface ProfileFormProps {
   userId: string;
@@ -15,6 +16,7 @@ export default function ProfileForm({ userId, role, onComplete }: ProfileFormPro
   const [avatarUrl, setAvatarUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
   const getInitials = (n: string) =>
     n
@@ -107,18 +109,19 @@ export default function ProfileForm({ userId, role, onComplete }: ProfileFormPro
             htmlFor="avatar"
             className="block text-sm text-white/60 mb-2 font-light"
           >
-            Avatar URL (optional)
+            Avatar (optional)
           </label>
-          <input
-            id="avatar"
-            type="url"
+          <ImageUpload
             value={avatarUrl}
-            onChange={(e) => setAvatarUrl(e.target.value)}
-            placeholder="https://..."
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-white/25 focus:outline-none focus:border-white/25 transition-colors"
+            onChange={setAvatarUrl}
+            onUploadingChange={setIsUploading}
+            bucket="avatars"
+            maxSizeMB={2}
+            placeholder="Drop image or click to upload"
+            className="h-32 w-32 mx-auto"
           />
-          <p className="mt-2 text-xs text-white/45 font-light">
-            Leave this empty to auto-generate a unique organizer avatar.
+          <p className="mt-2 text-xs text-white/45 font-light text-center">
+            Upload an image or leave empty for an auto-generated avatar.
           </p>
         </div>
 
@@ -128,7 +131,7 @@ export default function ProfileForm({ userId, role, onComplete }: ProfileFormPro
 
         <button
           type="submit"
-          disabled={loading || !name.trim()}
+          disabled={loading || isUploading || !name.trim()}
           className="liquid-glass-strong text-shadow-soft w-full rounded-full py-3 text-sm font-medium text-white disabled:opacity-40 transition-all hover:bg-white/12 hover:border-white/25"
         >
           {loading ? "Saving..." : "Continue"}

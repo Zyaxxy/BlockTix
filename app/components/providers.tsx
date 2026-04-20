@@ -439,6 +439,13 @@ export function Providers({ children }: ProvidersProps) {
             color: #ffffff !important;
           }
 
+          [data-testid*="sandbox"],
+          [class*="sandbox-indicator"],
+          [class*="environment-badge"],
+          .layout-header .badge__container {
+            display: none !important;
+          }
+
           .powered-by-dynamic {
             width: 100%;
             display: inline-flex;

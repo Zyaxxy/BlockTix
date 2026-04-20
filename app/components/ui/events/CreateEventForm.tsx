@@ -13,6 +13,7 @@ import {
   markEventAsLive,
   type OrganizerEvent,
 } from "@/lib/events";
+import { ImageUpload } from "../shared/ImageUpload";
 
 type CreateEventFormProps = {
   open: boolean;
@@ -41,6 +42,7 @@ export function CreateEventForm({
 }: CreateEventFormProps) {
   const [step, setStep] = useState<Step>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [deployStage, setDeployStage] = useState<DeployStage>("idle");
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -263,12 +265,21 @@ export function CreateEventForm({
               placeholder="Description"
               className="min-h-24 rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
             />
-            <input
-              value={imageUrl}
-              onChange={(event) => setImageUrl(event.target.value)}
-              placeholder="Banner image URL"
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
-            />
+            <div>
+              <label className="block text-sm text-white/80 mb-2">
+                Event Banner (optional)
+              </label>
+              <ImageUpload
+                value={imageUrl}
+                onChange={setImageUrl}
+                onUploadingChange={setIsUploading}
+                bucket="events"
+                maxSizeMB={5}
+                aspectRatio={1200 / 630}
+                placeholder="Drop banner image or click to upload"
+                className="h-40"
+              />
+            </div>
           </div>
         )}
 
@@ -363,7 +374,7 @@ export function CreateEventForm({
           ) : (
             <button
               onClick={submit}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isUploading}
               className="rounded-full bg-emerald-300 px-6 py-2 text-sm font-semibold text-black disabled:opacity-70"
             >
               {isSubmitting ? "Creating..." : "Create Event"}
