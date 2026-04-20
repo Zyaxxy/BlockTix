@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Address } from "@solana/kit";
 import { useDynamicContext, useSwitchWallet, useUserWallets } from "@dynamic-labs/sdk-react-core";
 import {
   createAuction,
   type OrganizerAuction,
 } from "@/lib/auctions";
-import type { OrganizerEvent } from "@/lib/events";
+import { fetchWalletNftMints, type WalletTokenMint } from "@/lib/solana/wallet-tokens";
 import {
   buildMakeAuctionInstruction,
   deriveAuctionAddress,
@@ -20,14 +20,28 @@ import {
 type AuctionCreateFormProps = {
   dynamicUserId: string;
   creatorUid: string;
-  events: OrganizerEvent[];
   onCreated: (auction: OrganizerAuction) => void;
 };
 
-type WalletLike = {
+const BID_TOKEN_OPTIONS = [
+  {
+    label: "SOL",
+    mint: "So11111111111111111111111111111111111111112",
+  },
+  {
+    label: "USDC",
+    mint: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+  },
+  {
+    label: "USDT",
+    mint: "EJwZgeZrdC8TXTQbQBoL6bfuAnFUUy1PVCMB4DYPzVaS",
+  },
+] as const;
+
+type WalletLike = NonNullable<Parameters<typeof sendAuctionInstructionWithSimulation>[0]["wallet"]> & {
   id?: string;
-  address?: string;
   chain?: string;
+  key?: string;
 };
 
 type ConnectedWallet = WalletLike & {
@@ -44,10 +58,25 @@ const toUnixSeconds = (value: string) => {
   return Math.floor(date.getTime() / 1000);
 };
 
+const formatMintPreview = (mint: string) => {
+  if (mint.length <= 10) {
+    return mint;
+  }
+
+  return `${mint.slice(0, 4)}...${mint.slice(-4)}`;
+};
+
+const isActiveAccountAddressError = (value: unknown) => {
+  if (!(value instanceof Error)) {
+    return false;
+  }
+
+  return value.message.toLowerCase().includes("active account address is required");
+};
+
 export function AuctionCreateForm({
   dynamicUserId,
   creatorUid,
-  events,
   onCreated,
 }: AuctionCreateFormProps) {
   const { primaryWallet } = useDynamicContext();
@@ -56,12 +85,15 @@ export function AuctionCreateForm({
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [eventId, setEventId] = useState("");
   const [nftMint, setNftMint] = useState("");
-  const [bidMint, setBidMint] = useState("");
+  const [bidMint, setBidMint] = useState<string>(BID_TOKEN_OPTIONS[0].mint);
   const [seed, setSeed] = useState(() => String(Date.now()));
   const [endTime, setEndTime] = useState("");
   const [depositAmount, setDepositAmount] = useState("1");
+  const [availablePrizeNftMints, setAvailablePrizeNftMints] = useState<WalletTokenMint[]>([]);
+  const [isLoadingPrizeNftMints, setIsLoadingPrizeNftMints] = useState(false);
+  const [prizeNftStatus, setPrizeNftStatus] = useState<string | null>(null);
+  const [prizeNftRefreshNonce, setPrizeNftRefreshNonce] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -70,6 +102,118 @@ export function AuctionCreateForm({
     () => [primaryWallet, ...userWallets].filter(Boolean) as WalletLike[],
     [primaryWallet, userWallets]
   );
+
+  const rankedWalletCandidates = useMemo(() => {
+    const dedupedWallets = wallets.filter((wallet, index, all) => {
+      const walletKey = `${wallet.id ?? ""}:${wallet.address ?? ""}`;
+      return (
+        all.findIndex(
+          (item) => `${item.id ?? ""}:${item.address ?? ""}` === walletKey
+        ) === index
+      );
+    });
+
+    return dedupedWallets.sort((left, right) => {
+      const scoreWallet = (wallet: WalletLike) => {
+        let score = 0;
+
+        if (wallet.chain?.toLowerCase().includes("sol")) {
+          score += 40;
+        }
+
+        if (wallet.key?.toLowerCase().includes("embedded")) {
+          score += 20;
+        }
+
+        if (
+          primaryWallet &&
+          ((wallet.id && wallet.id === (primaryWallet as WalletLike).id) ||
+            (wallet.address &&
+              wallet.address.toLowerCase() ===
+                ((primaryWallet as WalletLike).address ?? "").toLowerCase()))
+        ) {
+          score += 10;
+        }
+
+        if (wallet.address?.trim()) {
+          score += 5;
+        }
+
+        return score;
+      };
+
+      return scoreWallet(right) - scoreWallet(left);
+    });
+  }, [primaryWallet, wallets]);
+
+  const selectedWalletForPrizeNft = useMemo(
+    () =>
+      rankedWalletCandidates.find(
+        (wallet): wallet is ConnectedWallet => Boolean(wallet.address?.trim())
+      ),
+    [rankedWalletCandidates]
+  );
+
+  useEffect(() => {
+    let isDisposed = false;
+
+    const loadWalletPrizeNftMints = async () => {
+      const walletAddress = selectedWalletForPrizeNft?.address;
+      if (!walletAddress) {
+        setAvailablePrizeNftMints([]);
+        setNftMint("");
+        setPrizeNftStatus("Connect a Solana wallet to auto-detect prize NFT mints.");
+        return;
+      }
+
+      setIsLoadingPrizeNftMints(true);
+      setNftMint("");
+      setPrizeNftStatus("Loading NFT mints from your wallet...");
+
+      try {
+        const mints = await fetchWalletNftMints(walletAddress);
+        if (isDisposed) {
+          return;
+        }
+
+        setAvailablePrizeNftMints(mints);
+
+        if (mints.length > 0) {
+          setNftMint((current) => {
+            if (current && mints.some((item) => item.mint === current)) {
+              return current;
+            }
+            return mints[0].mint;
+          });
+          setPrizeNftStatus(`Auto-selected prize NFT from wallet ${walletAddress}.`);
+        } else {
+          setNftMint("");
+          setPrizeNftStatus("No NFT mints found in this wallet.");
+        }
+      } catch (mintLoadError) {
+        if (isDisposed) {
+          return;
+        }
+
+        setAvailablePrizeNftMints([]);
+        setPrizeNftStatus(
+          mintLoadError instanceof Error
+            ? `Could not read wallet NFT mints: ${mintLoadError.message}`
+            : "Could not read wallet NFT mints."
+        );
+      } finally {
+        if (!isDisposed) {
+          setIsLoadingPrizeNftMints(false);
+        }
+      }
+    };
+
+    void loadWalletPrizeNftMints();
+
+    return () => {
+      isDisposed = true;
+    };
+  }, [selectedWalletForPrizeNft?.address, prizeNftRefreshNonce]);
 
   const onSubmit = async () => {
     setError(null);
@@ -81,7 +225,7 @@ export function AuctionCreateForm({
     }
 
     if (!nftMint.trim() || !bidMint.trim() || !seed.trim() || !endTime.trim()) {
-      setError("NFT mint, bid mint, seed, and end time are required.");
+      setError("Prize NFT mint, bid token mint, and end time are required.");
       return;
     }
 
@@ -103,21 +247,19 @@ export function AuctionCreateForm({
       return;
     }
 
-    const preferredWallet =
-      (wallets.find((wallet) => wallet.chain?.toLowerCase().includes("sol")) as ConnectedWallet | undefined) ??
-      (wallets.find((wallet): wallet is ConnectedWallet => Boolean(wallet.address?.trim())) as
-        | ConnectedWallet
-        | undefined);
+    const executionWalletCandidates = rankedWalletCandidates.filter(
+      (wallet): wallet is ConnectedWallet => Boolean(wallet.address?.trim())
+    );
 
-    if (!preferredWallet) {
+    if (executionWalletCandidates.length === 0) {
       setError("Connect a Solana wallet first.");
       return;
     }
 
-    const makerAddress = preferredWallet.address;
+    const previewWallet = executionWalletCandidates[0];
 
     const confirmed = window.confirm(
-      `Create auction with\n- Maker: ${preferredWallet.address}\n- NFT Mint: ${nftMint.trim()}\n- Bid Mint: ${bidMint.trim()}\n- End Time: ${new Date(unixSeconds * 1000).toISOString()}\n- Deposit Amount: ${parsedDepositAmount}`
+      `Create auction with\n- Maker: ${previewWallet.address}\n- Prize NFT Mint: ${nftMint.trim()}\n- Bid Mint: ${bidMint.trim()}\n- End Time: ${new Date(unixSeconds * 1000).toISOString()}\n- Deposit Amount: ${parsedDepositAmount}`
     );
 
     if (!confirmed) {
@@ -127,62 +269,83 @@ export function AuctionCreateForm({
     setIsSubmitting(true);
 
     try {
-      if (preferredWallet.id) {
-        await switchWallet(preferredWallet.id);
+      let createdAuction: OrganizerAuction | null = null;
+      let createdSignature: string | null = null;
+
+      for (const walletCandidate of executionWalletCandidates) {
+        const makerAddress = walletCandidate.address;
+
+        try {
+          if (walletCandidate.id) {
+            await switchWallet(walletCandidate.id);
+          }
+
+          setStatus(`Building transaction for wallet ${makerAddress}...`);
+          const makerSigner = toAuctionInstructionSigner(makerAddress);
+          const instruction = await buildMakeAuctionInstruction({
+            maker: makerSigner,
+            nftMint: toAddress(nftMint.trim()),
+            bidMint: toAddress(bidMint.trim()),
+            seed: BigInt(parsedSeed),
+            endTime: BigInt(unixSeconds),
+            depositAmount: BigInt(parsedDepositAmount),
+          });
+
+          setStatus("Simulating and submitting transaction...");
+          const txResult = await sendAuctionInstructionWithSimulation({
+            instruction,
+            wallet: walletCandidate,
+          });
+
+          const derivedAuctionAddress = await deriveAuctionAddress(
+            toAddress(makerAddress),
+            BigInt(parsedSeed)
+          );
+          const auctionAddress = (Array.isArray(derivedAuctionAddress)
+            ? derivedAuctionAddress[0]
+            : derivedAuctionAddress).toString();
+
+          setStatus("Saving auction record...");
+          const createResult = await createAuction({
+            dynamicUserId,
+            creatorUid,
+            makerWallet: makerAddress,
+            auctionAddress,
+            seed: parsedSeed,
+            nftMint: nftMint.trim(),
+            bidMint: bidMint.trim(),
+            endTime: new Date(unixSeconds * 1000).toISOString(),
+            title: title.trim() || undefined,
+            description: description.trim() || undefined,
+            createSignature: txResult.signature,
+          });
+
+          if (createResult.error || !createResult.data) {
+            throw new Error(createResult.error ?? "Could not persist auction record.");
+          }
+
+          createdAuction = createResult.data;
+          createdSignature = txResult.signature;
+          break;
+        } catch (submitError) {
+          if (isActiveAccountAddressError(submitError)) {
+            continue;
+          }
+
+          throw submitError;
+        }
       }
 
-      setStatus("Building transaction...");
-      const makerSigner = toAuctionInstructionSigner(makerAddress);
-      const instruction = await buildMakeAuctionInstruction({
-        maker: makerSigner,
-        nftMint: toAddress(nftMint.trim()),
-        bidMint: toAddress(bidMint.trim()),
-        seed: BigInt(parsedSeed),
-        endTime: BigInt(unixSeconds),
-        depositAmount: BigInt(parsedDepositAmount),
-      });
-
-      setStatus("Simulating and submitting transaction...");
-      const txResult = await sendAuctionInstructionWithSimulation({
-        instruction,
-        wallet: preferredWallet as Parameters<typeof sendAuctionInstructionWithSimulation>[0]["wallet"],
-      });
-
-      const derivedAuctionAddress = await deriveAuctionAddress(
-        toAddress(makerAddress),
-        BigInt(parsedSeed)
-      );
-      const auctionAddress = (Array.isArray(derivedAuctionAddress)
-        ? derivedAuctionAddress[0]
-        : derivedAuctionAddress).toString();
-
-      setStatus("Saving auction record...");
-      const createResult = await createAuction({
-        dynamicUserId,
-        creatorUid,
-        makerWallet: makerAddress,
-        auctionAddress,
-        seed: parsedSeed,
-        nftMint: nftMint.trim(),
-        bidMint: bidMint.trim(),
-        endTime: new Date(unixSeconds * 1000).toISOString(),
-        eventId: eventId || undefined,
-        title: title.trim() || undefined,
-        description: description.trim() || undefined,
-        createSignature: txResult.signature,
-      });
-
-      if (createResult.error || !createResult.data) {
-        throw new Error(createResult.error ?? "Could not persist auction record.");
+      if (!createdAuction || !createdSignature) {
+        throw new Error("Connect a Solana wallet that supports embedded signing, then retry.");
       }
 
-      onCreated(createResult.data);
-      setStatus(`Auction created. Signature: ${txResult.signature.slice(0, 8)}...`);
+      onCreated(createdAuction);
+      setStatus(`Auction created. Signature: ${createdSignature.slice(0, 8)}...`);
       setTitle("");
       setDescription("");
-      setEventId("");
-      setNftMint("");
-      setBidMint("");
+      setNftMint(availablePrizeNftMints[0]?.mint ?? "");
+      setBidMint(BID_TOKEN_OPTIONS[0].mint);
       setSeed(String(Date.now()));
       setEndTime("");
       setDepositAmount("1");
@@ -201,60 +364,91 @@ export function AuctionCreateForm({
       </p>
 
       <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <input
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder="Title (optional)"
-          className="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm"
-        />
-        <select
-          value={eventId}
-          onChange={(event) => setEventId(event.target.value)}
-          className="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm"
-        >
-          <option value="">Link to event (optional)</option>
-          {events.map((event) => (
-            <option key={event.id} value={event.id}>
-              {event.name}
+        <label className="flex flex-col gap-1 text-xs text-white/60" htmlFor="auction-title">
+          <span className="uppercase tracking-[0.2em] text-white/40">Title</span>
+          <input
+            id="auction-title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Auction title"
+            className="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/30"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-white/60" htmlFor="auction-nft-mint">
+          <span className="uppercase tracking-[0.2em] text-white/40">Prize NFT Mint</span>
+          <select
+            id="auction-nft-mint"
+            value={nftMint}
+            onChange={(event) => setNftMint(event.target.value)}
+            className="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm text-white"
+            disabled={isLoadingPrizeNftMints || availablePrizeNftMints.length === 0}
+          >
+            <option value="">
+              {availablePrizeNftMints.length > 0 ? "Select an NFT mint" : "No NFT mints found"}
             </option>
-          ))}
-        </select>
-        <input
-          value={nftMint}
-          onChange={(event) => setNftMint(event.target.value)}
-          placeholder="Prize NFT mint"
-          className="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm"
-        />
-        <input
-          value={bidMint}
-          onChange={(event) => setBidMint(event.target.value)}
-          placeholder="Bid token mint"
-          className="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm"
-        />
-        <input
-          value={seed}
-          onChange={(event) => setSeed(event.target.value)}
-          placeholder="Seed"
-          className="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm"
-        />
-        <input
-          value={depositAmount}
-          onChange={(event) => setDepositAmount(event.target.value)}
-          placeholder="Deposit amount"
-          className="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm"
-        />
-        <input
-          type="datetime-local"
-          value={endTime}
-          onChange={(event) => setEndTime(event.target.value)}
-          className="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm md:col-span-2"
-        />
-        <textarea
-          value={description}
-          onChange={(event) => setDescription(event.target.value)}
-          placeholder="Description (optional)"
-          className="min-h-24 rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm md:col-span-2"
-        />
+            {availablePrizeNftMints.map((tokenMint) => (
+              <option key={tokenMint.mint} value={tokenMint.mint}>
+                {formatMintPreview(tokenMint.mint)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-white/60" htmlFor="auction-bid-mint">
+          <span className="uppercase tracking-[0.2em] text-white/40">Bid Token Mint</span>
+          <select
+            id="auction-bid-mint"
+            value={bidMint}
+            onChange={(event) => setBidMint(event.target.value)}
+            className="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm text-white"
+          >
+            {BID_TOKEN_OPTIONS.map((token) => (
+              <option key={token.mint} value={token.mint}>
+                {token.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-white/60" htmlFor="auction-deposit-amount">
+          <span className="uppercase tracking-[0.2em] text-white/40">Deposit Amount</span>
+          <input
+            id="auction-deposit-amount"
+            value={depositAmount}
+            onChange={(event) => setDepositAmount(event.target.value)}
+            placeholder="Deposit amount"
+            className="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/30"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-white/60 md:col-span-2" htmlFor="auction-end-time">
+          <span className="uppercase tracking-[0.2em] text-white/40">End Time</span>
+          <input
+            id="auction-end-time"
+            type="datetime-local"
+            value={endTime}
+            onChange={(event) => setEndTime(event.target.value)}
+            className="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm text-white md:col-span-2"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-white/60 md:col-span-2" htmlFor="auction-description">
+          <span className="uppercase tracking-[0.2em] text-white/40">Description</span>
+          <textarea
+            id="auction-description"
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            placeholder="Description (optional)"
+            className="min-h-24 rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/30"
+          />
+        </label>
+        <div className="md:col-span-2 flex items-center justify-between gap-3 text-xs text-white/60">
+          <span>{prizeNftStatus ?? "Prize NFT mint is selected from your wallet."}</span>
+          <button
+            type="button"
+            onClick={() => setPrizeNftRefreshNonce((value) => value + 1)}
+            disabled={isLoadingPrizeNftMints}
+            className="rounded-md border border-white/20 px-2 py-1 text-white/80 transition hover:bg-white/10 disabled:opacity-50"
+          >
+            {isLoadingPrizeNftMints ? "Loading..." : "Refresh NFTs"}
+          </button>
+        </div>
       </div>
 
       <div className="mt-4 flex items-center gap-3">

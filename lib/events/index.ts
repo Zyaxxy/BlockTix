@@ -151,6 +151,38 @@ export const fetchLiveEvents = async (): Promise<OrganizerEvent[]> => {
   return (data ?? []).map(normalizeEvent);
 };
 
+export const fetchEventById = async (
+  eventId: string
+): Promise<OrganizerEvent | null> => {
+  if (!eventId || eventTableGuard.isTableMissing()) {
+    return null;
+  }
+
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from(EVENTS_TABLE)
+    .select(EVENT_SELECT)
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (error) {
+    if (eventTableGuard.isMissingTableError(error.message)) {
+      eventTableGuard.markTableMissing();
+    }
+    return null;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return normalizeEvent(data);
+};
+
 export const markEventAsLive = async ({
   dynamicUserId,
   eventId,

@@ -65,7 +65,7 @@ export type CandyMachineSummary = {
   mintAuthority: string;
 };
 
-type DynamicWalletLike = {
+export type DynamicWalletLike = {
   address?: string;
   connector?: {
     getActiveAccountAddress?: () => Promise<string | undefined>;

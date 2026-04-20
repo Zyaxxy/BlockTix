@@ -118,7 +118,8 @@ export default function ProfileForm({ userId, role, onComplete }: ProfileFormPro
             bucket="avatars"
             maxSizeMB={2}
             placeholder="Drop image or click to upload"
-            className="h-32 w-32 mx-auto"
+            className="w-full"
+            aspectRatio={ 11 / 3}
           />
           <p className="mt-2 text-xs text-white/45 font-light text-center">
             Upload an image or leave empty for an auto-generated avatar.

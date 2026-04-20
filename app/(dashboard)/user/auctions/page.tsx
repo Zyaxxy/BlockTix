@@ -92,7 +92,6 @@ export default function UserAuctionsPage() {
         <AuctionCreateForm
           dynamicUserId={dynamicUserId}
           creatorUid={dynamicUserId}
-          events={[]}
           onCreated={onCreated}
         />
 

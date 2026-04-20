@@ -344,6 +344,13 @@ export default function UserDashboard() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Link
+                href="/user/wallet"
+                className="inline-flex items-center gap-2 rounded-full border border-white/25 px-4 py-2 text-sm text-white/90 hover:bg-white/10"
+              >
+                <Wallet className="h-4 w-4" />
+                Wallet
+              </Link>
+              <Link
                 href="/user/auctions"
                 className="inline-flex items-center gap-2 rounded-full border border-white/25 px-4 py-2 text-sm text-white/90 hover:bg-white/10"
               >
@@ -401,6 +408,18 @@ export default function UserDashboard() {
               {!loadingEvents &&
                 events.map((event) => (
                   <article key={event.id} className="liquid-glass rounded-2xl p-4">
+                    <div
+                      aria-hidden="true"
+                      className="mb-3 h-28 w-full overflow-hidden rounded-xl border border-white/10 bg-black/25"
+                    >
+                      <div
+                        className="h-full w-full bg-cover bg-center"
+                        style={{
+                          backgroundImage: `url(${event.imageUrl || "https://dummyimage.com/1200x630/0b0f14/ffffff&text=BlockTix"})`,
+                        }}
+                      />
+                    </div>
+
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h3 className="text-lg font-semibold text-white">{event.name}</h3>
@@ -425,6 +444,14 @@ export default function UserDashboard() {
                         {event.mintedCount}/{event.totalSupply} minted
                       </span>
                       <span className="text-right">{event.status}</span>
+                    </div>
+                    <div className="mt-3 flex justify-end">
+                      <Link
+                        href={`/events/${event.id}`}
+                        className="inline-flex items-center gap-2 rounded-full border border-white/20 px-3 py-1.5 text-xs text-white/85 hover:bg-white/10"
+                      >
+                        View details
+                      </Link>
                     </div>
                   </article>
                 ))}

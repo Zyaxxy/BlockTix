@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import {
-  createCandyMachineClient,
   deployCandyMachineForEvent,
   getSolanaWalletAdapterFromDynamicWallet,
   solToLamports,
-  uploadTicketMetadataJson,
 } from "@/lib/solana/candy-machine";
 import {
   createDraftEvent,
@@ -152,19 +150,18 @@ export function CreateEventForm({
       }
 
       try {
-        const umi = createCandyMachineClient(walletAdapter);
         setDeployStage("uploading_metadata");
-        const metadataUri = await uploadTicketMetadataJson(umi, {
-          name,
-          symbol,
-          description: description || `${name} entry ticket`,
-          imageUri: imageUrl || "https://dummyimage.com/1200x630/0b0f14/ffffff&text=BlockTix",
-          attributes: [
-            { trait_type: "Event", value: name },
-            { trait_type: "Venue", value: venue || "TBA" },
-            { trait_type: "Category", value: "Ticket" },
-          ],
-        });
+        const appOrigin =
+          process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
+          (typeof window !== "undefined" ? window.location.origin : "");
+
+        if (!appOrigin) {
+          throw new Error(
+            "Cannot determine app origin for metadata URI. Set NEXT_PUBLIC_APP_URL."
+          );
+        }
+
+        const metadataUri = `${appOrigin}/api/events/${createResult.data.id}/metadata`;
 
         setDeployStage("deploying_candy_machine");
         const deployment = await deployCandyMachineForEvent({

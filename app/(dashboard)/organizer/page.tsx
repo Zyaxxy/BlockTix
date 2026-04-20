@@ -341,6 +341,7 @@ export default function OrganizerDashboard() {
                     const progress = event.totalSupply > 0
                       ? Math.round((event.mintedCount / event.totalSupply) * 100)
                       : 0;
+                    const eventBanner = event.imageUrl || "https://dummyimage.com/1200x630/0b0f14/ffffff&text=BlockTix";
 
                     return (
                       <motion.article
@@ -351,6 +352,15 @@ export default function OrganizerDashboard() {
                         className="group relative rounded-2xl border border-white/5 bg-white/[0.02] p-5 transition hover:border-white/10 hover:bg-white/[0.03]"
                       >
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div
+                            aria-hidden="true"
+                            className="h-24 w-full overflow-hidden rounded-xl border border-white/10 bg-zinc-900/70 lg:h-20 lg:w-44"
+                          >
+                            <div
+                              className="h-full w-full bg-cover bg-center"
+                              style={{ backgroundImage: `url(${eventBanner})` }}
+                            />
+                          </div>
                           <div className="flex-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <h3 className="text-lg font-semibold text-white">{event.name}</h3>
@@ -417,9 +427,13 @@ export default function OrganizerDashboard() {
                               </div>
                             </div>
 
-                            <button className="rounded-lg border border-white/10 p-2 text-white/50 transition hover:bg-white/5 hover:text-white/70">
-                              <MoreHorizontal className="h-5 w-5" />
-                            </button>
+                            <Link
+                              href={`/events/${event.id}`}
+                              className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
+                            >
+                              <Eye className="h-4 w-4" />
+                              View details
+                            </Link>
                           </div>
                         </div>
                       </motion.article>
