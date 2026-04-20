@@ -256,7 +256,7 @@ export default function OrganizerDashboard() {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wider text-white/40">Revenue</p>
-                <p className="mt-1 text-2xl font-semibold">{formatSol(stats.totalRevenue)} SOL</p>
+                <p className="mt-1 text-2xl font-semibold">{formatSol(stats.totalRevenue)} </p>
               </div>
             </div>
           </motion.div>
@@ -376,7 +376,7 @@ export default function OrganizerDashboard() {
                               </span>
                               <span className="inline-flex items-center gap-1.5">
                                 <DollarSign className="h-4 w-4 text-white/40" />
-                                {formatSol(event.priceLamports)} SOL
+                                {formatSol(event.priceLamports)}
                               </span>
                             </div>
                           </div>
@@ -412,7 +412,7 @@ export default function OrganizerDashboard() {
                                 </div>
                               </div>
                               <div className="hidden sm:block">
-                                <p className="text-sm font-medium">{formatSol(event.mintedCount * event.priceLamports)} SOL</p>
+                                <p className="text-sm font-medium">{formatSol(event.mintedCount * event.priceLamports)} </p>
                                 <p className="text-xs text-white/40">Revenue</p>
                               </div>
                             </div>

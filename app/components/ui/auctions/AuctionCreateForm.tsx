@@ -19,7 +19,7 @@ import {
 
 type AuctionCreateFormProps = {
   dynamicUserId: string;
-  organizerUid: string;
+  creatorUid: string;
   events: OrganizerEvent[];
   onCreated: (auction: OrganizerAuction) => void;
 };
@@ -46,7 +46,7 @@ const toUnixSeconds = (value: string) => {
 
 export function AuctionCreateForm({
   dynamicUserId,
-  organizerUid,
+  creatorUid,
   events,
   onCreated,
 }: AuctionCreateFormProps) {
@@ -75,8 +75,8 @@ export function AuctionCreateForm({
     setError(null);
     setStatus(null);
 
-    if (!dynamicUserId || dynamicUserId !== organizerUid) {
-      setError("Organizer identity mismatch.");
+    if (!dynamicUserId || dynamicUserId !== creatorUid) {
+      setError("Creator identity mismatch.");
       return;
     }
 
@@ -159,7 +159,7 @@ export function AuctionCreateForm({
       setStatus("Saving auction record...");
       const createResult = await createAuction({
         dynamicUserId,
-        organizerUid,
+        creatorUid,
         makerWallet: makerAddress,
         auctionAddress,
         seed: parsedSeed,

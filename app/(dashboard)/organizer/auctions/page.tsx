@@ -5,9 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
 import { fetchUserProfile } from "@/lib/profile";
-import { fetchOrganizerEvents, type OrganizerEvent } from "@/lib/events";
 import { fetchAuctions, type OrganizerAuction } from "@/lib/auctions";
-import { AuctionCreateForm } from "@/app/components/ui/auctions/AuctionCreateForm";
 import { AuctionList } from "@/app/components/ui/auctions/AuctionList";
 
 export default function OrganizerAuctionsPage() {
@@ -16,8 +14,6 @@ export default function OrganizerAuctionsPage() {
   const { user } = useDynamicContext();
 
   const [ready, setReady] = useState(false);
-  const [dynamicUserId, setDynamicUserId] = useState<string | null>(null);
-  const [events, setEvents] = useState<OrganizerEvent[]>([]);
   const [auctions, setAuctions] = useState<OrganizerAuction[]>([]);
 
   useEffect(() => {
@@ -42,15 +38,10 @@ export default function OrganizerAuctionsPage() {
         return;
       }
 
-      const [organizerEvents, organizerAuctions] = await Promise.all([
-        fetchOrganizerEvents(uid),
-        fetchAuctions({ organizerUid: uid }),
-      ]);
+      const organizerAuctions = await fetchAuctions();
 
       if (!active) return;
 
-      setDynamicUserId(uid);
-      setEvents(organizerEvents);
       setAuctions(organizerAuctions);
       setReady(true);
     };
@@ -62,11 +53,7 @@ export default function OrganizerAuctionsPage() {
     };
   }, [isLoggedIn, router, user?.userId]);
 
-  const onCreated = (auction: OrganizerAuction) => {
-    setAuctions((current) => [auction, ...current]);
-  };
-
-  if (!ready || !dynamicUserId) {
+  if (!ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0a0b0d] text-white">
         <p className="text-sm text-white/60">Loading auctions workspace...</p>
@@ -90,18 +77,15 @@ export default function OrganizerAuctionsPage() {
           </Link>
         </div>
 
-        <AuctionCreateForm
-          dynamicUserId={dynamicUserId}
-          organizerUid={dynamicUserId}
-          events={events}
-          onCreated={onCreated}
-        />
+        <p className="rounded-xl border border-white/15 bg-white/[0.03] px-4 py-3 text-sm text-white/70">
+          Auctions are now created by users. Organizers can monitor marketplace activity here.
+        </p>
 
         <section>
-          <h2 className="mb-3 text-base font-semibold text-white">Your Auctions</h2>
+          <h2 className="mb-3 text-base font-semibold text-white">Marketplace Auctions</h2>
           <AuctionList
             auctions={auctions}
-            emptyMessage="No auctions created yet. Create one to start accepting bids."
+            emptyMessage="No auctions available yet."
           />
         </section>
       </div>

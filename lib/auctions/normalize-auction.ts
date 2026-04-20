@@ -10,6 +10,7 @@ export type OrganizerAuction = {
   id: string;
   auctionAddress: string;
   seed: number;
+  creatorUid: string;
   organizerUid: string;
   makerWallet: string;
   eventId: string | null;
@@ -79,6 +80,7 @@ export const normalizeAuction = (row: {
   id: row.id,
   auctionAddress: row.auction_address,
   seed: row.seed,
+  creatorUid: row.organizer_uid,
   organizerUid: row.organizer_uid,
   makerWallet: row.maker_wallet,
   eventId: row.event_id,

@@ -37,7 +37,7 @@ export function ImageUpload({
   className = "",
   disabled = false,
 }: ImageUploadProps) {
-  const { primaryWallet } = useDynamicContext();
+  const { user } = useDynamicContext();
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -84,7 +84,7 @@ export function ImageUpload({
 
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("dynamicUserId", primaryWallet?.address || "");
+        formData.append("dynamicUserId", user?.userId || "");
 
         // Simulate progress for better UX (fetch doesn't support progress)
         const progressInterval = setInterval(() => {
@@ -128,7 +128,7 @@ export function ImageUpload({
         onUploadingChange?.(false);
       }
     },
-    [bucket, disabled, maxSize, onChange, onUploadingChange, primaryWallet]
+    [bucket, disabled, maxSize, onChange, onUploadingChange, user]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {

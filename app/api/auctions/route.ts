@@ -14,7 +14,8 @@ import { USERS_TABLE } from "@/lib/profile";
 
 type CreateAuctionRequest = {
   dynamicUserId: string;
-  organizerUid: string;
+  creatorUid?: string;
+  organizerUid?: string;
   makerWallet: string;
   auctionAddress: string;
   seed: number;
@@ -47,20 +48,23 @@ export async function GET(request: Request) {
   const log = createDevRequestLogger("api/auctions:GET");
   const url = new URL(request.url);
 
-  const organizerUid = url.searchParams.get("organizerUid")?.trim() ?? null;
+  const creatorUid =
+    url.searchParams.get("creatorUid")?.trim() ??
+    url.searchParams.get("organizerUid")?.trim() ??
+    null;
   const eventId = url.searchParams.get("eventId")?.trim() ?? null;
   const status = normalizeStatus(url.searchParams.get("status"));
 
   log.info("request received", {
-    organizerUid,
+    creatorUid,
     eventId,
     status,
   });
 
   let query = supabaseAdmin.from(AUCTIONS_TABLE).select(AUCTION_SELECT);
 
-  if (organizerUid) {
-    query = query.eq("organizer_uid", organizerUid);
+  if (creatorUid) {
+    query = query.eq("organizer_uid", creatorUid);
   }
 
   if (eventId) {
@@ -97,9 +101,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
+  const requestedCreatorUid = body.creatorUid?.trim() || body.organizerUid?.trim() || null;
+
   if (
     !body.dynamicUserId ||
-    !body.organizerUid ||
+    !requestedCreatorUid ||
     !body.makerWallet?.trim() ||
     !body.auctionAddress?.trim() ||
     !body.nftMint?.trim() ||
@@ -108,7 +114,7 @@ export async function POST(request: Request) {
   ) {
     log.warn("missing required create fields", {
       hasDynamicUserId: Boolean(body.dynamicUserId),
-      hasOrganizerUid: Boolean(body.organizerUid),
+      hasCreatorUid: Boolean(requestedCreatorUid),
       hasMakerWallet: Boolean(body.makerWallet?.trim()),
       hasAuctionAddress: Boolean(body.auctionAddress?.trim()),
       hasNftMint: Boolean(body.nftMint?.trim()),
@@ -121,12 +127,12 @@ export async function POST(request: Request) {
     );
   }
 
-  if (body.dynamicUserId !== body.organizerUid) {
-    log.warn("organizer identity mismatch", {
+  if (body.dynamicUserId !== requestedCreatorUid) {
+    log.warn("creator identity mismatch", {
       dynamicUserId: body.dynamicUserId,
-      organizerUid: body.organizerUid,
+      creatorUid: requestedCreatorUid,
     });
-    return NextResponse.json({ error: "Organizer identity mismatch." }, { status: 403 });
+    return NextResponse.json({ error: "Creator identity mismatch." }, { status: 403 });
   }
 
   if (!Number.isInteger(body.seed) || body.seed < 0) {
@@ -166,13 +172,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: userError.message }, { status: 500 });
   }
 
-  if (!userRow || userRow.role !== "organizer") {
-    log.warn("user is not organizer", {
+  if (!userRow || userRow.role !== "user") {
+    log.warn("user is not allowed to create auctions", {
       userExists: Boolean(userRow),
       role: userRow?.role ?? null,
     });
     return NextResponse.json(
-      { error: "Only organizers can create auctions." },
+      { error: "Only users can create auctions." },
       { status: 403 }
     );
   }
@@ -180,7 +186,7 @@ export async function POST(request: Request) {
   if (body.eventId) {
     const { data: eventRow, error: eventError } = await supabaseAdmin
       .from(EVENTS_TABLE)
-      .select("id, organizer_uid")
+      .select("id")
       .eq("id", body.eventId)
       .maybeSingle();
 
@@ -195,17 +201,6 @@ export async function POST(request: Request) {
     if (!eventRow) {
       log.warn("linked event not found", { eventId: body.eventId });
       return NextResponse.json({ error: "Linked event not found." }, { status: 404 });
-    }
-
-    if (eventRow.organizer_uid !== authResult.dynamicUserId) {
-      log.warn("event ownership mismatch", {
-        ownerUid: eventRow.organizer_uid,
-        callerUid: authResult.dynamicUserId,
-      });
-      return NextResponse.json(
-        { error: "Not authorized to link this event." },
-        { status: 403 }
-      );
     }
   }
 

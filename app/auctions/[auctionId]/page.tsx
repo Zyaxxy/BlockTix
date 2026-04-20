@@ -198,7 +198,7 @@ export default function AuctionDetailPage() {
   }, [auction, now]);
 
   const walletAddress = activeSolWallet?.address?.trim() ?? null;
-  const isOrganizer = Boolean(dynamicUserId && auction && dynamicUserId === auction.organizerUid);
+  const isCreator = Boolean(dynamicUserId && auction && dynamicUserId === auction.creatorUid);
   const isMakerWallet = Boolean(
     walletAddress && auction && walletAddress.toLowerCase() === auction.makerWallet.toLowerCase()
   );
@@ -212,7 +212,7 @@ export default function AuctionDetailPage() {
       auction.status === "active" &&
       countdown.ended &&
       auction.highestBidder &&
-      isOrganizer &&
+        isCreator &&
       isMakerWallet
   );
   const canCancel = Boolean(
@@ -220,7 +220,7 @@ export default function AuctionDetailPage() {
       auction.status === "active" &&
       countdown.ended &&
       !auction.highestBidder &&
-      isOrganizer &&
+        isCreator &&
       isMakerWallet
   );
   const canRefund = Boolean(
@@ -613,7 +613,7 @@ export default function AuctionDetailPage() {
                 </button>
               </div>
               <p className="mt-2 text-xs text-white/50">
-                Resolve/cancel requires organizer maker wallet. Refund is for losing bidders after resolution.
+                Resolve/cancel requires the creator wallet used for auction creation. Refund is for losing bidders after resolution.
               </p>
             </div>
           </div>

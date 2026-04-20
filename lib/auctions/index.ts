@@ -19,7 +19,7 @@ const auctionTableGuard = createTableGuard(AUCTIONS_TABLE);
 
 export type CreateAuctionInput = {
   dynamicUserId: string;
-  organizerUid: string;
+  creatorUid: string;
   makerWallet: string;
   auctionAddress: string;
   seed: number;
@@ -80,11 +80,11 @@ const callApi = async <T>(
 };
 
 export const fetchAuctions = async ({
-  organizerUid,
+  creatorUid,
   eventId,
   status,
 }: {
-  organizerUid?: string;
+  creatorUid?: string;
   eventId?: string;
   status?: AuctionStatus;
 } = {}): Promise<OrganizerAuction[]> => {
@@ -99,8 +99,8 @@ export const fetchAuctions = async ({
 
   let query = supabase.from(AUCTIONS_TABLE).select(AUCTION_SELECT);
 
-  if (organizerUid) {
-    query = query.eq("organizer_uid", organizerUid);
+  if (creatorUid) {
+    query = query.eq("organizer_uid", creatorUid);
   }
 
   if (eventId) {

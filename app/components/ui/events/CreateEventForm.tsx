@@ -231,7 +231,7 @@ export function CreateEventForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-3xl border border-white/15 bg-[#090d13] p-6 text-white shadow-[0_30px_100px_rgba(0,0,0,0.65)]">
+      <div className="flex max-h-[90dvh] w-full max-w-2xl flex-col rounded-3xl border border-white/15 bg-[#090d13] p-6 text-white shadow-[0_30px_100px_rgba(0,0,0,0.65)]">
         <div className="mb-5 flex items-center justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-white/50">Create Event</p>
@@ -246,7 +246,7 @@ export function CreateEventForm({
         </div>
 
         {step === 1 && (
-          <div className="grid gap-3">
+          <div className="grid gap-3 overflow-y-auto">
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -275,7 +275,7 @@ export function CreateEventForm({
                 onUploadingChange={setIsUploading}
                 bucket="events"
                 maxSizeMB={5}
-                aspectRatio={1200 / 630}
+                aspectRatio={110 / 28}
                 placeholder="Drop banner image or click to upload"
                 className="h-40"
               />
@@ -284,7 +284,7 @@ export function CreateEventForm({
         )}
 
         {step === 2 && (
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 overflow-y-auto md:grid-cols-2">
             <input
               value={symbol}
               onChange={(event) => setSymbol(event.target.value.toUpperCase())}
@@ -314,7 +314,7 @@ export function CreateEventForm({
         )}
 
         {step === 3 && (
-          <div className="grid gap-3">
+          <div className="grid gap-3 overflow-y-auto">
             <label className="text-sm text-white/80">Sale start (optional)</label>
             <input
               type="datetime-local"
@@ -346,16 +346,18 @@ export function CreateEventForm({
           </div>
         )}
 
-        {error && <p className="mt-4 text-sm text-rose-300">{error}</p>}
-        {warning && <p className="mt-2 text-sm text-amber-300">{warning}</p>}
-        {isSubmitting && deployStage !== "idle" && (
-          <p className="mt-2 text-sm text-cyan-200">{deployStageMessage[deployStage]}</p>
-        )}
-        {deployAttemptId && (
-          <p className="mt-1 text-xs text-white/40">Deploy Attempt ID: {deployAttemptId}</p>
-        )}
+        <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
+          {error && <p className="text-sm text-rose-300">{error}</p>}
+          {warning && <p className="text-sm text-amber-300">{warning}</p>}
+          {isSubmitting && deployStage !== "idle" && (
+            <p className="text-sm text-cyan-200">{deployStageMessage[deployStage]}</p>
+          )}
+          {deployAttemptId && (
+            <p className="text-xs text-white/40">Deploy Attempt ID: {deployAttemptId}</p>
+          )}
+        </div>
 
-        <div className="mt-6 flex items-center justify-between">
+        <div className="mt-auto flex items-center justify-between border-t border-white/10 pt-4">
           <button
             onClick={() => setStep((current) => (current > 1 ? ((current - 1) as Step) : current))}
             disabled={step === 1 || isSubmitting}

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useDynamicContext, useIsLoggedIn } from "@dynamic-labs/sdk-react-core";
 import { fetchUserProfile } from "@/lib/profile";
 import { fetchAuctions, type OrganizerAuction } from "@/lib/auctions";
+import { AuctionCreateForm } from "@/app/components/ui/auctions/AuctionCreateForm";
 import { AuctionList } from "@/app/components/ui/auctions/AuctionList";
 
 export default function UserAuctionsPage() {
@@ -14,6 +15,8 @@ export default function UserAuctionsPage() {
   const { user } = useDynamicContext();
 
   const [ready, setReady] = useState(false);
+  const [dynamicUserId, setDynamicUserId] = useState<string | null>(null);
+  const [myAuctions, setMyAuctions] = useState<OrganizerAuction[]>([]);
   const [auctions, setAuctions] = useState<OrganizerAuction[]>([]);
 
   useEffect(() => {
@@ -38,10 +41,15 @@ export default function UserAuctionsPage() {
         return;
       }
 
-      const result = await fetchAuctions();
+      const [allAuctions, createdByMe] = await Promise.all([
+        fetchAuctions(),
+        fetchAuctions({ creatorUid: uid }),
+      ]);
       if (!active) return;
 
-      setAuctions(result);
+      setDynamicUserId(uid);
+      setAuctions(allAuctions);
+      setMyAuctions(createdByMe);
       setReady(true);
     };
 
@@ -52,7 +60,12 @@ export default function UserAuctionsPage() {
     };
   }, [isLoggedIn, router, user?.userId]);
 
-  if (!ready) {
+  const onCreated = (auction: OrganizerAuction) => {
+    setMyAuctions((current) => [auction, ...current]);
+    setAuctions((current) => [auction, ...current]);
+  };
+
+  if (!ready || !dynamicUserId) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#08090b] text-white">
         <p className="text-sm text-white/60">Loading auction feed...</p>
@@ -75,6 +88,21 @@ export default function UserAuctionsPage() {
             Back to Dashboard
           </Link>
         </div>
+
+        <AuctionCreateForm
+          dynamicUserId={dynamicUserId}
+          creatorUid={dynamicUserId}
+          events={[]}
+          onCreated={onCreated}
+        />
+
+        <section>
+          <h2 className="mb-3 text-base font-semibold text-white">Auctions You Created</h2>
+          <AuctionList
+            auctions={myAuctions}
+            emptyMessage="You have not created an auction yet."
+          />
+        </section>
 
         <AuctionList
           auctions={auctions}

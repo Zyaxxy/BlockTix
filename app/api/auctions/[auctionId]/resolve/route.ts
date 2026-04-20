@@ -3,7 +3,6 @@ import { verifyDynamicToken } from "@/lib/auth/dynamic-server-auth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { createDevRequestLogger } from "@/lib/shared/dev-logger";
 import { AUCTIONS_TABLE, AUCTION_ACTIVITY_TABLE } from "@/lib/auctions/normalize-auction";
-import { USERS_TABLE } from "@/lib/profile";
 
 type ResolveAuctionRequest = {
   dynamicUserId: string;
@@ -44,24 +43,6 @@ export async function POST(
     return NextResponse.json({ error: authResult.error ?? "Unauthorized." }, { status: 401 });
   }
 
-  const { data: userRow, error: userError } = await supabaseAdmin
-    .from(USERS_TABLE)
-    .select("uid, role")
-    .eq("uid", authResult.dynamicUserId)
-    .maybeSingle();
-
-  if (userError) {
-    log.error("failed to load user role", { error: userError.message });
-    return NextResponse.json({ error: userError.message }, { status: 500 });
-  }
-
-  if (!userRow || userRow.role !== "organizer") {
-    return NextResponse.json(
-      { error: "Only organizers can resolve auctions." },
-      { status: 403 }
-    );
-  }
-
   const { data: auctionRow, error: auctionError } = await supabaseAdmin
     .from(AUCTIONS_TABLE)
     .select("id, organizer_uid, status")
@@ -79,7 +60,7 @@ export async function POST(
 
   if (auctionRow.organizer_uid !== authResult.dynamicUserId) {
     return NextResponse.json(
-      { error: "Not authorized to resolve this auction." },
+      { error: "Only the auction creator can resolve this auction." },
       { status: 403 }
     );
   }
