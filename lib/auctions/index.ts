@@ -111,7 +111,7 @@ export const fetchAuctions = async ({
     query = query.eq("status", status);
   }
 
-  const { data, error } = await query.order("created_at", { ascending: false });
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(50);
 
   if (error) {
     if (auctionTableGuard.isMissingTableError(error.message)) {

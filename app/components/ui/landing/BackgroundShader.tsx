@@ -11,7 +11,7 @@ export const BackgroundShader = () => {
                 loop
                 muted
                 playsInline
-                preload="auto"
+                preload="metadata"
                 poster="/images/hero_bg.jpeg"
             >
                 <source src="/bg1.mp4" type="video/mp4" />

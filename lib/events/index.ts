@@ -96,7 +96,8 @@ export const fetchOrganizerEvents = async (organizerUid: string): Promise<Organi
     .from(EVENTS_TABLE)
     .select(EVENT_SELECT)
     .eq("organizer_uid", organizerUid)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(50);
 
   if (error) {
     if (eventTableGuard.isMissingTableError(error.message)) {

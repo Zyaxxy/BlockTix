@@ -83,7 +83,7 @@ export default function LoadingScreen({ onComplete }: LoadingScreenProps) {
         loop
         muted
         playsInline
-        preload="auto"
+        preload="metadata"
       >
         <source src="/bg.mp4" type="video/mp4" />
       </video>
