@@ -206,22 +206,22 @@ export default function AuctionDetailPage() {
     walletAddress && auction?.highestBidder && walletAddress.toLowerCase() === auction.highestBidder.toLowerCase()
   );
 
-  const canBid = Boolean(auction && auction.status === "active" && !countdown.ended);
+  const canBid = Boolean(
+    auction && auction.status === "active" && !countdown.ended && !isMakerWallet
+  );
   const canResolve = Boolean(
     auction &&
-      auction.status === "active" &&
-      countdown.ended &&
-      auction.highestBidder &&
-        isCreator &&
-      isMakerWallet
+    auction.status === "active" &&
+    countdown.ended &&
+    auction.highestBidder &&
+    isMakerWallet
   );
   const canCancel = Boolean(
     auction &&
-      auction.status === "active" &&
-      countdown.ended &&
-      !auction.highestBidder &&
-        isCreator &&
-      isMakerWallet
+    auction.status === "active" &&
+    countdown.ended &&
+    !auction.highestBidder &&
+    isMakerWallet
   );
   const canRefund = Boolean(
     auction && auction.status === "resolved" && walletAddress && !isWinnerWallet && !isMakerWallet
@@ -234,10 +234,10 @@ export default function AuctionDetailPage() {
 
     const selected = makerOnly
       ? wallets.find(
-          (wallet) =>
-            isSolanaWallet(wallet) &&
-            wallet.address?.toLowerCase() === auction?.makerWallet.toLowerCase()
-        )
+        (wallet) =>
+          isSolanaWallet(wallet) &&
+          wallet.address?.toLowerCase() === auction?.makerWallet.toLowerCase()
+      )
       : activeSolWallet;
 
     if (!selected || !selected.address) {
@@ -266,6 +266,11 @@ export default function AuctionDetailPage() {
     }
 
     const bidderWallet = await ensureActionWallet();
+
+    if (bidderWallet.address.toLowerCase() === auction.makerWallet.toLowerCase()) {
+      setError("As the auctioneer, you cannot bid on your own auction.");
+      return;
+    }
 
     const approved = window.confirm(
       `Bid ${parsedAmount} token units on auction ${auction.auctionAddress}.\nWallet: ${bidderWallet.address}\nCluster: devnet (configured RPC)`
@@ -566,56 +571,108 @@ export default function AuctionDetailPage() {
             Active wallet: {walletAddress ?? "Not connected"}
           </p>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/50">Place Bid</p>
-              <div className="mt-2 flex gap-2">
-                <input
-                  value={bidAmount}
-                  onChange={(event) => setBidAmount(event.target.value)}
-                  className="w-full rounded-lg border border-white/20 bg-black/20 px-3 py-2 text-sm"
-                  placeholder="Additional bid amount"
-                />
-                <button
-                  onClick={onBid}
-                  disabled={!canBid || isActionBusy}
-                  className="rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  Bid
-                </button>
-              </div>
-              {!canBid && <p className="mt-2 text-xs text-white/50">Bidding is currently unavailable.</p>}
-            </div>
+          <div className="mt-4">
+            {isMakerWallet ? (
+              <div className="rounded-2xl border border-orange-500/30 bg-orange-500/[0.03] p-6 shadow-xl">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-orange-400 animate-pulse" />
+                      Auctioneer Dashboard
+                    </h3>
+                    <p className="text-sm text-white/50 mt-1">You created this auction. Manage settlement and cancellations here.</p>
+                  </div>
+                  <div className="bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">
+                    <span className="text-[10px] font-semibold text-orange-400 uppercase tracking-widest">Active Managed</span>
+                  </div>
+                </div>
 
-            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/50">Settle Auction</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <button
-                  onClick={onResolve}
-                  disabled={!canResolve || isActionBusy}
-                  className="rounded-lg bg-orange-500 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  Resolve
-                </button>
-                <button
-                  onClick={onCancel}
-                  disabled={!canCancel || isActionBusy}
-                  className="rounded-lg border border-white/20 px-3 py-2 text-sm text-white disabled:opacity-60"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={onRefund}
-                  disabled={!canRefund || isActionBusy}
-                  className="rounded-lg border border-emerald-400/40 px-3 py-2 text-sm text-emerald-200 disabled:opacity-60"
-                >
-                  Claim Refund
-                </button>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-4 text-sm">
+                    <div className="bg-black/30 p-4 rounded-xl border border-white/5">
+                      <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Current Status</p>
+                      <p className="font-medium text-white capitalize">{auction.status}</p>
+                    </div>
+                    <div className="bg-black/30 p-4 rounded-xl border border-white/5">
+                      <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Highest Bidder</p>
+                      <p className="font-mono text-white/80 break-all">{auction.highestBidder ?? "No bids yet"}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col justify-center gap-3 bg-black/30 p-5 rounded-xl border border-white/10">
+                    <button
+                      onClick={onResolve}
+                      disabled={!canResolve || isActionBusy}
+                      className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:grayscale disabled:hover:scale-100"
+                    >
+                      {isActionBusy ? "Processing..." : "Resolve & Claim Funds"}
+                    </button>
+                    <button
+                      onClick={onCancel}
+                      disabled={!canCancel || isActionBusy}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-white transition-all hover:bg-white/10 hover:border-white/20 active:scale-[0.98] disabled:opacity-30 disabled:hover:scale-100"
+                    >
+                      Cancel & Reclaim NFT
+                    </button>
+
+                    {!canResolve && !canCancel && auction.status === 'active' && (
+                      <p className="text-[10px] text-center text-white/40 italic mt-1">
+                        {!countdown.ended
+                          ? "Auction is still ongoing. You can settle once the timer expires."
+                          : auction.highestBidder
+                            ? "Ready to resolve."
+                            : "No bids received. Ready to cancel."}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
-              <p className="mt-2 text-xs text-white/50">
-                Resolve/cancel requires the creator wallet used for auction creation. Refund is for losing bidders after resolution.
-              </p>
-            </div>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-3">Place Bid</p>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        value={bidAmount}
+                        onChange={(event) => setBidAmount(event.target.value)}
+                        className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm focus:border-emerald-500/50 outline-none transition"
+                        placeholder="Amount"
+                        type="number"
+                      />
+                    </div>
+                    <button
+                      onClick={onBid}
+                      disabled={!canBid || isActionBusy}
+                      className="rounded-lg bg-emerald-500 px-5 py-2 text-sm font-bold text-white disabled:opacity-60 transition hover:bg-emerald-400"
+                    >
+                      {isActionBusy ? "..." : "Bid"}
+                    </button>
+                  </div>
+                  {!canBid && (
+                    <p className="mt-3 text-[10px] text-white/40">
+                      {auction.status !== "active" ? "Auction closed." : countdown.ended ? "Expired." : "Bidding currently unavailable."}
+                    </p>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-3">Participation</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={onRefund}
+                      disabled={!canRefund || isActionBusy}
+                      className="w-full rounded-lg border border-emerald-400/40 px-3 py-2.5 text-sm font-semibold text-emerald-200 disabled:opacity-30 transition hover:bg-emerald-400/10"
+                    >
+                      Claim Refund (Losing Bids)
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[10px] text-white/40 italic">
+                    If you bid and didn't win, reclaim your tokens here after resolution.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {actionMessage && <p className="mt-3 text-xs text-emerald-300">{actionMessage}</p>}

@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import {
+  createCandyMachineClient,
   deployCandyMachineForEvent,
   getSolanaWalletAdapterFromDynamicWallet,
   solToLamports,
+  uploadTicketMetadataJson,
 } from "@/lib/solana/candy-machine";
 import {
   createDraftEvent,
@@ -12,6 +14,9 @@ import {
   type OrganizerEvent,
 } from "@/lib/events";
 import { ImageUpload } from "../shared/ImageUpload";
+
+const FALLBACK_IMAGE_URI =
+  "https://dummyimage.com/1200x630/0b0f14/ffffff&text=BlockTix";
 
 type CreateEventFormProps = {
   open: boolean;
@@ -150,19 +155,27 @@ export function CreateEventForm({
       }
 
       try {
+        // Step 1: Upload the Metaplex-compliant metadata JSON to Irys so the
+        // URI stored on-chain is permanent and decentralised — not a localhost route.
         setDeployStage("uploading_metadata");
-        const appOrigin =
-          process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-          (typeof window !== "undefined" ? window.location.origin : "");
+        const umi = createCandyMachineClient(walletAdapter);
 
-        if (!appOrigin) {
-          throw new Error(
-            "Cannot determine app origin for metadata URI. Set NEXT_PUBLIC_APP_URL."
-          );
-        }
+        const metadataUri = await uploadTicketMetadataJson(umi, {
+          name: `${name} Ticket`,
+          symbol,
+          description: description.trim() || `${name} entry ticket minted on BlockTix.`,
+          // Use the Supabase public URL if one was uploaded, otherwise fall back
+          // to a deterministic placeholder so the metadata is always valid.
+          imageUri: imageUrl.trim() || FALLBACK_IMAGE_URI,
+          externalUrl:
+            typeof window !== "undefined" ? window.location.origin : "https://blocktix.app",
+          attributes: [
+            { trait_type: "Event", value: name },
+            { trait_type: "Venue", value: venue.trim() || "TBA" },
+          ],
+        });
 
-        const metadataUri = `${appOrigin}/api/events/${createResult.data.id}/metadata`;
-
+        // Step 2: Deploy the on-chain Candy Machine using the permanent Irys URI.
         setDeployStage("deploying_candy_machine");
         const deployment = await deployCandyMachineForEvent({
           walletAdapter,
@@ -187,6 +200,7 @@ export function CreateEventForm({
           metadataUri,
         };
 
+        // Step 3: Persist the permanent Irys URI to Supabase for reference.
         setDeployStage("syncing_event");
         const markLive = await markEventAsLive({
           dynamicUserId,
@@ -221,7 +235,7 @@ export function CreateEventForm({
   const deployStageMessage: Record<DeployStage, string> = {
     idle: "",
     creating_draft: "Creating draft event...",
-    uploading_metadata: "Uploading ticket metadata...",
+    uploading_metadata: "Uploading metadata to Irys (permanent storage)...",
     deploying_candy_machine: "Deploying collection and Candy Machine...",
     syncing_event: "Syncing live event state...",
   };

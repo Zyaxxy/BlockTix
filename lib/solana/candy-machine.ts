@@ -234,17 +234,17 @@ export const getSolanaWalletAdapterFromDynamicWallet = async (
 
   const signAllTransactions = signer.signAllTransactions
     ? async <T extends Transaction | VersionedTransaction>(transactions: T[]): Promise<T[]> => {
-        await ensureActiveAccountAddress();
-        return signer.signAllTransactions!(transactions);
-      }
+      await ensureActiveAccountAddress();
+      return signer.signAllTransactions!(transactions);
+    }
     : undefined;
 
   const signMessage = signer.signMessage
     ? async (message: Uint8Array): Promise<Uint8Array> => {
-        await ensureActiveAccountAddress();
-        const signed = await signer.signMessage!(message);
-        return normalizeBytes(signed);
-      }
+      await ensureActiveAccountAddress();
+      const signed = await signer.signMessage!(message);
+      return normalizeBytes(signed);
+    }
     : undefined;
 
   return {
@@ -255,11 +255,46 @@ export const getSolanaWalletAdapterFromDynamicWallet = async (
   };
 };
 
+/**
+ * Irys uploads data to Arweave but returns arweave.net URIs by default.
+ * Irys-bundled transactions are only reliably served via the Irys gateway,
+ * so we normalise the URI here regardless of what the uploader returns.
+ *
+ * Handles:
+ *   https://arweave.net/{txId}  →  https://gateway.irys.xyz/{txId}
+ *   ar://{txId}                 →  https://gateway.irys.xyz/{txId}
+ *   https://gateway.irys.xyz/*  →  unchanged
+ */
+const toIrysGatewayUri = (uri: string): string => {
+  const IRYS_GATEWAY = "https://gateway.irys.xyz";
+
+  // Already on the Irys gateway — nothing to do.
+  if (uri.startsWith(IRYS_GATEWAY)) {
+    return uri;
+  }
+
+  // ar://<txId>[/<path>]
+  if (uri.startsWith("ar://")) {
+    const rest = uri.slice("ar://".length);
+    return `${IRYS_GATEWAY}/${rest}`;
+  }
+
+  // https://arweave.net/<txId>[/<path>]
+  const arweaveNetPrefix = "https://arweave.net/";
+  if (uri.startsWith(arweaveNetPrefix)) {
+    const rest = uri.slice(arweaveNetPrefix.length);
+    return `${IRYS_GATEWAY}/${rest}`;
+  }
+
+  // Unknown scheme — return as-is and let the caller handle it.
+  return uri;
+};
+
 export const uploadTicketMetadataJson = async (
   umi: Umi,
   input: TicketMetadataInput
 ): Promise<string> => {
-  return umi.uploader.uploadJson({
+  const uri = await umi.uploader.uploadJson({
     name: input.name,
     symbol: input.symbol,
     description: input.description,
@@ -271,6 +306,8 @@ export const uploadTicketMetadataJson = async (
       category: "image",
     },
   });
+
+  return toIrysGatewayUri(uri);
 };
 
 const mapCandyMachineSummary = (

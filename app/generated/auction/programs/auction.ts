@@ -30,7 +30,7 @@ import {
 } from "../instructions";
 
 export const AUCTION_PROGRAM_ADDRESS =
-  "Fs6SxZtS8QP5ME9ApPg34KcBnhKX7QkgNoFnJ3jLtE61" as Address<"Fs6SxZtS8QP5ME9ApPg34KcBnhKX7QkgNoFnJ3jLtE61">;
+  "CXA848KGbmaYExskMu2XaxEwVpPh3G8z2776N4GdGif1" as Address<"CXA848KGbmaYExskMu2XaxEwVpPh3G8z2776N4GdGif1">;
 
 export enum AuctionAccount {
   Auction,
@@ -141,23 +141,23 @@ export function identifyAuctionInstruction(
 }
 
 export type ParsedAuctionInstruction<
-  TProgram extends string = "Fs6SxZtS8QP5ME9ApPg34KcBnhKX7QkgNoFnJ3jLtE61",
+  TProgram extends string = "CXA848KGbmaYExskMu2XaxEwVpPh3G8z2776N4GdGif1",
 > =
   | ({
-      instructionType: AuctionInstruction.Bid;
-    } & ParsedBidInstruction<TProgram>)
+    instructionType: AuctionInstruction.Bid;
+  } & ParsedBidInstruction<TProgram>)
   | ({
-      instructionType: AuctionInstruction.CancelAuction;
-    } & ParsedCancelAuctionInstruction<TProgram>)
+    instructionType: AuctionInstruction.CancelAuction;
+  } & ParsedCancelAuctionInstruction<TProgram>)
   | ({
-      instructionType: AuctionInstruction.ClaimRefund;
-    } & ParsedClaimRefundInstruction<TProgram>)
+    instructionType: AuctionInstruction.ClaimRefund;
+  } & ParsedClaimRefundInstruction<TProgram>)
   | ({
-      instructionType: AuctionInstruction.MakeAuction;
-    } & ParsedMakeAuctionInstruction<TProgram>)
+    instructionType: AuctionInstruction.MakeAuction;
+  } & ParsedMakeAuctionInstruction<TProgram>)
   | ({
-      instructionType: AuctionInstruction.ResolveAuction;
-    } & ParsedResolveAuctionInstruction<TProgram>);
+    instructionType: AuctionInstruction.ResolveAuction;
+  } & ParsedResolveAuctionInstruction<TProgram>);
 
 export function parseAuctionInstruction<TProgram extends string>(
   instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,

@@ -5,7 +5,7 @@ pub mod state;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("Fs6SxZtS8QP5ME9ApPg34KcBnhKX7QkgNoFnJ3jLtE61");
+declare_id!("CXA848KGbmaYExskMu2XaxEwVpPh3G8z2776N4GdGif1");
 
 #[program]
 pub mod auction {
