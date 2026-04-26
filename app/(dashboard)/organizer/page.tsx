@@ -186,12 +186,6 @@ export default function OrganizerDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Link
-              href="/organizer/auctions"
-              className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white/70 transition hover:bg-white/10"
-            >
-              Auctions
-            </Link>
             <button
               onClick={() => setIsCreateModalOpen(true)}
               className="inline-flex items-center gap-2 rounded-lg bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-400"
@@ -289,11 +283,10 @@ export default function OrganizerDashboard() {
                 <button
                   key={filter}
                   onClick={() => setActiveFilter(filter)}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-                    activeFilter === filter
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${activeFilter === filter
                       ? "bg-white/10 text-white"
                       : "text-white/50 hover:text-white/70 hover:bg-white/5"
-                  }`}
+                    }`}
                 >
                   {filter.charAt(0).toUpperCase() + filter.slice(1)}
                 </button>

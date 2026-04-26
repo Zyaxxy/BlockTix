@@ -343,18 +343,27 @@ export default function UserDashboard() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href="/user/wallet"
-                className="inline-flex items-center gap-2 rounded-full border border-white/25 px-4 py-2 text-sm text-white/90 hover:bg-white/10"
-              >
-                <Wallet className="h-4 w-4" />
-                Wallet
-              </Link>
+              {hasEmbeddedWallet && (
+                <Link
+                  href="/user/wallet"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/25 px-4 py-2 text-sm text-white/90 hover:bg-white/10"
+                >
+                  <Wallet className="h-4 w-4" />
+                  Wallet
+                </Link>
+              )}
               <Link
                 href="/user/auctions"
                 className="inline-flex items-center gap-2 rounded-full border border-white/25 px-4 py-2 text-sm text-white/90 hover:bg-white/10"
               >
                 Auctions
+              </Link>
+              <Link
+                href="/user/tickets"
+                className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-4 py-2 text-sm font-medium text-emerald-300 hover:bg-emerald-500/10 transition-all"
+              >
+                <Ticket className="h-4 w-4" />
+                My Tickets
               </Link>
               <button
                 onClick={onLogout}
@@ -516,6 +525,9 @@ export default function UserDashboard() {
 
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold">My Tickets</h2>
+              <Link href="/user/tickets" className="text-xs text-white/40 hover:text-white transition-colors underline underline-offset-4">
+                View All
+              </Link>
               <Ticket className="h-5 w-5 text-amber-300" />
             </div>
 

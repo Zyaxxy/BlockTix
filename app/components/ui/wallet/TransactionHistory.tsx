@@ -33,9 +33,9 @@ const formatTimeAgo = (dateString: string) => {
 const getActionLabel = (item: WalletHistoryItem) => {
   switch (item.action) {
     case "send":
-      return "Sent SOL";
+      return "Sent Funds";
     case "receive":
-      return "Received SOL";
+      return "Received Funds";
     case "mint":
       return "Minted Ticket";
     case "bid":
@@ -104,13 +104,12 @@ export function TransactionHistory({ walletAddress }: TransactionHistoryProps) {
               className="liquid-glass rounded-xl p-4 flex items-center gap-4"
             >
               <div
-                className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                  item.action === "send"
+                className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${item.action === "send"
                     ? "bg-red-400/20 text-red-300"
                     : item.action === "receive"
                       ? "bg-emerald-400/20 text-emerald-300"
                       : "bg-amber-400/20 text-amber-300"
-                }`}
+                  }`}
               >
                 {item.action === "send" ? (
                   <ArrowUpRight className="h-5 w-5" />
@@ -138,9 +137,8 @@ export function TransactionHistory({ walletAddress }: TransactionHistoryProps) {
 
               <div className="text-right">
                 <p
-                  className={`text-sm font-medium ${
-                    item.action === "send" ? "text-red-300" : "text-emerald-300"
-                  }`}
+                  className={`text-sm font-medium ${item.action === "send" ? "text-red-300" : "text-emerald-300"
+                    }`}
                 >
                   {item.action === "send" ? "-" : "+"}
                   {formatSol(item.amount)}

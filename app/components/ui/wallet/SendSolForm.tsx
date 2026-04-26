@@ -4,6 +4,8 @@ import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Send, Loader2 } from "lucide-react";
 import { sendSol, isValidSolanaAddress } from "@/lib/solana/transfer";
+import { solToUsd, usdToSol } from "@/lib/solana/conversions";
+
 import type { DynamicWalletLike } from "@/lib/solana/candy-machine";
 
 type SendSolFormProps = {
@@ -18,17 +20,22 @@ export function SendSolForm({
   onTransferComplete,
 }: SendSolFormProps) {
   const [recipientAddress, setRecipientAddress] = useState("");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(""); // This will now be in USD
+
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const parsedAmount = parseFloat(amount);
-  const isValidAmount = !isNaN(parsedAmount) && parsedAmount > 0;
+  const amountInUsd = parseFloat(amount);
+  const amountInSol = usdToSol(amountInUsd);
+  const currentBalanceInUsd = currentBalance !== null ? solToUsd(currentBalance) : null;
+
+  const isValidAmount = !isNaN(amountInUsd) && amountInUsd > 0;
   const isValidRecipient = isValidSolanaAddress(recipientAddress);
   const hasSufficientBalance =
-    currentBalance !== null && isValidAmount && parsedAmount <= currentBalance;
+    currentBalanceInUsd !== null && isValidAmount && amountInUsd <= currentBalanceInUsd;
   const canSend = wallet && isValidAmount && isValidRecipient && hasSufficientBalance && !sending;
+
 
   const handleSend = useCallback(async () => {
     if (!canSend || !wallet) return;
@@ -38,8 +45,9 @@ export function SendSolForm({
     setSuccess(null);
 
     try {
-      const result = await sendSol(wallet, recipientAddress, parsedAmount);
-      setSuccess(`Sent ${parsedAmount} SOL! Signature: ${result.signature.slice(0, 8)}...`);
+      const result = await sendSol(wallet, recipientAddress, amountInSol);
+      setSuccess(`Sent $${amountInUsd.toFixed(2)} USD! Signature: ${result.signature.slice(0, 8)}...`);
+
       setAmount("");
       setRecipientAddress("");
       onTransferComplete?.(result.signature);
@@ -52,10 +60,12 @@ export function SendSolForm({
 
   const setMaxAmount = useCallback(() => {
     if (currentBalance !== null && currentBalance > 0) {
-      const maxSend = Math.max(0, currentBalance - 0.00001);
-      setAmount(maxSend.toFixed(6));
+      const maxSendSol = Math.max(0, currentBalance - 0.00001);
+      const maxSendUsd = solToUsd(maxSendSol);
+      setAmount(maxSendUsd.toFixed(2));
     }
   }, [currentBalance]);
+
 
   return (
     <motion.div
@@ -65,9 +75,10 @@ export function SendSolForm({
       transition={{ delay: 0.12, duration: 0.35 }}
     >
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-2xl font-semibold">Send SOL</h2>
+        <h2 className="text-2xl font-semibold">Send Funds</h2>
         <Send className="h-5 w-5 text-emerald-300" />
       </div>
+
 
       <div className="mt-4 space-y-4">
         <div className="liquid-glass rounded-xl p-4">
@@ -89,8 +100,9 @@ export function SendSolForm({
         <div className="liquid-glass rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
             <label className="text-xs uppercase tracking-[0.16em] text-white/50">
-              Amount (SOL)
+              Amount (USD)
             </label>
+
             <button
               onClick={setMaxAmount}
               className="text-xs text-emerald-300 hover:text-emerald-200"
@@ -107,11 +119,12 @@ export function SendSolForm({
             min="0"
             className="w-full rounded-lg border border-white/20 bg-black/25 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-emerald-300/50 focus:outline-none"
           />
-          {currentBalance !== null && (
+          {currentBalanceInUsd !== null && (
             <p className="mt-1 text-xs text-white/50">
-              Available: {currentBalance.toFixed(4)} SOL
+              Available: ${currentBalanceInUsd.toFixed(2)}
             </p>
           )}
+
           {amount && isValidAmount && !hasSufficientBalance && (
             <p className="mt-1 text-xs text-red-400">Insufficient balance</p>
           )}
@@ -142,8 +155,9 @@ export function SendSolForm({
           ) : (
             <>
               <Send className="h-4 w-4" />
-              Send SOL
+              Send Funds
             </>
+
           )}
         </button>
 

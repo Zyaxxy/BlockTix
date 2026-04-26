@@ -285,5 +285,37 @@ export const fetchUserTicketSales = async (
   );
 };
 
+export const verifyTicketByMint = async (
+  ticketMint: string
+): Promise<UserTicketSale | null> => {
+  const supabase = getSupabaseBrowserClient();
+  if (!supabase) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from(TICKET_SALES_TABLE)
+    .select("id, event_id, candy_machine_id, ticket_mint, price_lamports, minted_at, events(name)")
+    .eq("ticket_mint", ticketMint)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  const row = data as any;
+  return {
+    id: row.id,
+    eventId: row.event_id,
+    eventName: Array.isArray(row.events)
+      ? (row.events[0]?.name ?? null)
+      : (row.events?.name ?? null),
+    candyMachineId: row.candy_machine_id,
+    ticketMint: row.ticket_mint,
+    priceLamports: row.price_lamports,
+    mintedAt: row.minted_at,
+  };
+};
+
 export { EVENT_SELECT, EVENTS_TABLE, TICKET_SALES_TABLE, normalizeEvent } from "./normalize-event";
 export type { EventStatus, OrganizerEvent } from "./normalize-event";

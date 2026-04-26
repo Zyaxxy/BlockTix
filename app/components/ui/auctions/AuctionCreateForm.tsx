@@ -25,7 +25,7 @@ type AuctionCreateFormProps = {
 
 const BID_TOKEN_OPTIONS = [
   {
-    label: "SOL",
+    label: "USD",
     mint: "So11111111111111111111111111111111111111112",
   },
   {
@@ -130,7 +130,7 @@ export function AuctionCreateForm({
           ((wallet.id && wallet.id === (primaryWallet as WalletLike).id) ||
             (wallet.address &&
               wallet.address.toLowerCase() ===
-                ((primaryWallet as WalletLike).address ?? "").toLowerCase()))
+              ((primaryWallet as WalletLike).address ?? "").toLowerCase()))
         ) {
           score += 10;
         }
@@ -409,12 +409,12 @@ export function AuctionCreateForm({
           </select>
         </label>
         <label className="flex flex-col gap-1 text-xs text-white/60" htmlFor="auction-deposit-amount">
-          <span className="uppercase tracking-[0.2em] text-white/40">Deposit Amount</span>
+          <span className="uppercase tracking-[0.2em] text-white/40">Prize Quantity</span>
           <input
             id="auction-deposit-amount"
             value={depositAmount}
             onChange={(event) => setDepositAmount(event.target.value)}
-            placeholder="Deposit amount"
+            placeholder="e.g. 1"
             className="rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-white/30"
           />
         </label>

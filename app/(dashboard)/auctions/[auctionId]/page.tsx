@@ -32,6 +32,14 @@ import {
   sendAuctionInstructionWithSimulation,
   toAuctionInstructionSigner,
 } from "@/lib/solana/auction-transaction";
+import {
+  solToUsd,
+  usdToLamports,
+  solToLamports,
+  lamportsToUsd,
+  usdToSol,
+} from "@/lib/solana/conversions";
+
 
 type WalletLike = {
   id?: string;
@@ -87,7 +95,8 @@ export default function AuctionDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [isActionBusy, setIsActionBusy] = useState(false);
-  const [bidAmount, setBidAmount] = useState("1");
+  const [bidAmount, setBidAmount] = useState("10"); // Default 10 USD
+
   const [now, setNow] = useState(() => Date.now());
 
   const auctionId = typeof params.auctionId === "string" ? params.auctionId : "";
@@ -259,13 +268,13 @@ export default function AuctionDetailPage() {
       return;
     }
 
-    const parsedAmount = Number(bidAmount);
-    if (!Number.isInteger(parsedAmount) || parsedAmount <= 0) {
-      setError("Bid amount must be a positive integer.");
+    if (!Number(bidAmount) || Number(bidAmount) <= 0) {
+      setError("Bid amount must be a positive value.");
       return;
     }
 
     const bidderWallet = await ensureActionWallet();
+
 
     if (bidderWallet.address.toLowerCase() === auction.makerWallet.toLowerCase()) {
       setError("As the auctioneer, you cannot bid on your own auction.");
@@ -273,8 +282,9 @@ export default function AuctionDetailPage() {
     }
 
     const approved = window.confirm(
-      `Bid ${parsedAmount} token units on auction ${auction.auctionAddress}.\nWallet: ${bidderWallet.address}\nCluster: devnet (configured RPC)`
+      `Bid $${bidAmount} (${usdToSol(bidAmount).toFixed(4)} SOL) on auction ${auction.auctionAddress}.\nWallet: ${bidderWallet.address}\nCluster: devnet (configured RPC)`
     );
+
     if (!approved) return;
 
     setIsActionBusy(true);
@@ -285,13 +295,15 @@ export default function AuctionDetailPage() {
       const bidderAddress = bidderWallet.address;
       const bidderSigner = toAuctionInstructionSigner(bidderAddress);
       const bidderBidAta = deriveAssociatedTokenAddress(bidderAddress, auction.bidMint);
+      const lamports = usdToLamports(bidAmount);
       const instruction = await buildBidInstruction({
         bidder: bidderSigner,
         auction: toAddress(auction.auctionAddress),
         bidderBidAta: toAddress(bidderBidAta),
         bidMint: toAddress(auction.bidMint),
-        additionalAmount: BigInt(parsedAmount),
+        additionalAmount: lamports,
       });
+
 
       setActionMessage("Simulating and submitting bid...");
       const tx = await sendAuctionInstructionWithSimulation({
@@ -299,19 +311,18 @@ export default function AuctionDetailPage() {
         wallet: bidderWallet as Parameters<typeof sendAuctionInstructionWithSimulation>[0]["wallet"],
       });
 
-      const projectedHighest = Math.max(
-        Number(auction.highestBidAmount ?? 0),
-        Number(auction.highestBidAmount ?? 0) + parsedAmount
-      );
+      const amountInSol = usdToSol(bidAmount);
+      const projectedHighestSol = (auction.highestBidAmount ?? 0) + amountInSol;
 
       const bidResult = await recordAuctionBid({
         dynamicUserId,
         auctionId: auction.id,
         bidderWallet: bidderAddress,
-        amount: parsedAmount,
+        amount: amountInSol,
         signature: tx.signature,
-        highestBidAmount: projectedHighest,
+        highestBidAmount: projectedHighestSol,
       });
+
 
       if (bidResult.error) {
         throw new Error(bidResult.error);
@@ -526,20 +537,6 @@ export default function AuctionDetailPage() {
             <p className="text-xs uppercase tracking-[0.24em] text-white/40">Auction Detail</p>
             <h1 className="text-2xl font-semibold">{auction.title ?? `Auction #${auction.seed}`}</h1>
           </div>
-          <div className="flex items-center gap-2 text-xs">
-            <Link
-              href="/organizer/auctions"
-              className="rounded-lg border border-white/20 px-3 py-2 text-white/80 transition hover:bg-white/10"
-            >
-              Organizer View
-            </Link>
-            <Link
-              href="/user/auctions"
-              className="rounded-lg border border-white/20 px-3 py-2 text-white/80 transition hover:bg-white/10"
-            >
-              User View
-            </Link>
-          </div>
         </div>
 
         <section className="grid gap-4 md:grid-cols-3">
@@ -557,7 +554,7 @@ export default function AuctionDetailPage() {
           <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-white/50">Highest Bid</p>
             <p className="mt-2 text-3xl font-semibold text-emerald-300">
-              {auction.highestBidAmount ?? 0}
+              ${solToUsd(auction.highestBidAmount ?? 0).toFixed(2)}
             </p>
             <p className="mt-2 break-all text-xs text-white/60">
               Bidder: {auction.highestBidder ?? "No bids yet"}
@@ -637,9 +634,13 @@ export default function AuctionDetailPage() {
                         value={bidAmount}
                         onChange={(event) => setBidAmount(event.target.value)}
                         className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm focus:border-emerald-500/50 outline-none transition"
-                        placeholder="Amount"
+                        placeholder="USD Amount"
                         type="number"
                       />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/40 pointer-events-none">
+                        USD
+                      </div>
+
                     </div>
                     <button
                       onClick={onBid}
@@ -691,7 +692,7 @@ export default function AuctionDetailPage() {
                   className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm"
                 >
                   <p className="font-medium text-white/90">
-                    {entry.actionType.toUpperCase()} {entry.amount ? `• ${entry.amount}` : ""}
+                    {entry.actionType.toUpperCase()} {entry.amount ? `• $${solToUsd(entry.amount).toFixed(2)}` : ""}
                   </p>
                   <p className="mt-1 break-all text-xs text-white/60">
                     Actor: {entry.actorWallet ?? entry.actorUid ?? "Unknown"}

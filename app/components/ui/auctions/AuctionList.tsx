@@ -3,6 +3,8 @@
 import Link from "next/link";
 import type { OrganizerAuction } from "@/lib/auctions";
 
+import { solToUsd } from "@/lib/solana/conversions";
+
 type AuctionListProps = {
   auctions: OrganizerAuction[];
   emptyMessage: string;
@@ -48,7 +50,9 @@ export function AuctionList({ auctions, emptyMessage }: AuctionListProps) {
           {auction.description ? (
             <p className="mt-2 text-sm text-white/70">{auction.description}</p>
           ) : null}
-          <p className="mt-2 text-xs text-white/50">Highest bid: {auction.highestBidAmount ?? 0}</p>
+          <p className="mt-2 text-xs text-white/50">
+            Highest bid: ${solToUsd(auction.highestBidAmount ?? 0).toFixed(2)}
+          </p>
         </article>
       ))}
     </div>

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { RefreshCw, Copy, Check, Wallet } from "lucide-react";
 import { fetchSolBalance } from "@/lib/solana/balance";
+import { solToUsd } from "@/lib/solana/conversions";
+
 
 type WalletOverviewProps = {
   walletAddress: string;
@@ -101,7 +103,7 @@ export function WalletOverview({
 
       <div className="mt-4 liquid-glass rounded-xl p-4">
         <div className="flex items-center justify-between">
-          <p className="text-xs uppercase tracking-[0.16em] text-white/50">SOL Balance</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-white/50">Balance</p>
           <button
             onClick={refreshBalance}
             disabled={loading}
@@ -112,7 +114,7 @@ export function WalletOverview({
           </button>
         </div>
         <p className="mt-2 text-3xl font-semibold">
-          {balance !== null ? `${balance.toFixed(4)} SOL` : "—"}
+          {balance !== null ? `$${solToUsd(balance).toFixed(2)}` : "—"}
         </p>
         {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
       </div>
