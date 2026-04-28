@@ -11,6 +11,8 @@ import {
   fixDecoderSize,
   fixEncoderSize,
   getAddressEncoder,
+  getBooleanDecoder,
+  getBooleanEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getI64Decoder,
@@ -114,12 +116,14 @@ export type MakeAuctionInstructionData = {
   seed: bigint;
   endTime: bigint;
   depositAmount: bigint;
+  nativeSol: boolean;
 };
 
 export type MakeAuctionInstructionDataArgs = {
   seed: number | bigint;
   endTime: number | bigint;
   depositAmount: number | bigint;
+  nativeSol: boolean;
 };
 
 export function getMakeAuctionInstructionDataEncoder(): FixedSizeEncoder<MakeAuctionInstructionDataArgs> {
@@ -129,6 +133,7 @@ export function getMakeAuctionInstructionDataEncoder(): FixedSizeEncoder<MakeAuc
       ["seed", getU64Encoder()],
       ["endTime", getI64Encoder()],
       ["depositAmount", getU64Encoder()],
+      ["nativeSol", getBooleanEncoder()],
     ]),
     (value) => ({ ...value, discriminator: MAKE_AUCTION_DISCRIMINATOR }),
   );
@@ -140,6 +145,7 @@ export function getMakeAuctionInstructionDataDecoder(): FixedSizeDecoder<MakeAuc
     ["seed", getU64Decoder()],
     ["endTime", getI64Decoder()],
     ["depositAmount", getU64Decoder()],
+    ["nativeSol", getBooleanDecoder()],
   ]);
 }
 
@@ -178,6 +184,7 @@ export type MakeAuctionAsyncInput<
   seed: MakeAuctionInstructionDataArgs["seed"];
   endTime: MakeAuctionInstructionDataArgs["endTime"];
   depositAmount: MakeAuctionInstructionDataArgs["depositAmount"];
+  nativeSol: MakeAuctionInstructionDataArgs["nativeSol"];
 };
 
 export async function getMakeAuctionInstructionAsync<
@@ -365,6 +372,7 @@ export type MakeAuctionInput<
   seed: MakeAuctionInstructionDataArgs["seed"];
   endTime: MakeAuctionInstructionDataArgs["endTime"];
   depositAmount: MakeAuctionInstructionDataArgs["depositAmount"];
+  nativeSol: MakeAuctionInstructionDataArgs["nativeSol"];
 };
 
 export function getMakeAuctionInstruction<

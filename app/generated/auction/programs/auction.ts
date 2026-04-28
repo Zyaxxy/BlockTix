@@ -144,20 +144,20 @@ export type ParsedAuctionInstruction<
   TProgram extends string = "CXA848KGbmaYExskMu2XaxEwVpPh3G8z2776N4GdGif1",
 > =
   | ({
-    instructionType: AuctionInstruction.Bid;
-  } & ParsedBidInstruction<TProgram>)
+      instructionType: AuctionInstruction.Bid;
+    } & ParsedBidInstruction<TProgram>)
   | ({
-    instructionType: AuctionInstruction.CancelAuction;
-  } & ParsedCancelAuctionInstruction<TProgram>)
+      instructionType: AuctionInstruction.CancelAuction;
+    } & ParsedCancelAuctionInstruction<TProgram>)
   | ({
-    instructionType: AuctionInstruction.ClaimRefund;
-  } & ParsedClaimRefundInstruction<TProgram>)
+      instructionType: AuctionInstruction.ClaimRefund;
+    } & ParsedClaimRefundInstruction<TProgram>)
   | ({
-    instructionType: AuctionInstruction.MakeAuction;
-  } & ParsedMakeAuctionInstruction<TProgram>)
+      instructionType: AuctionInstruction.MakeAuction;
+    } & ParsedMakeAuctionInstruction<TProgram>)
   | ({
-    instructionType: AuctionInstruction.ResolveAuction;
-  } & ParsedResolveAuctionInstruction<TProgram>);
+      instructionType: AuctionInstruction.ResolveAuction;
+    } & ParsedResolveAuctionInstruction<TProgram>);
 
 export function parseAuctionInstruction<TProgram extends string>(
   instruction: Instruction<TProgram> & InstructionWithData<ReadonlyUint8Array>,

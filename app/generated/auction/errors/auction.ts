@@ -28,26 +28,34 @@ export const AUCTION_ERROR__AUCTION_NOT_RESOLVED = 0x1774; // 6004
 export const AUCTION_ERROR__AUCTION_HAS_BIDS = 0x1775; // 6005
 /** AlreadyRefunded: The bid has already been refunded. */
 export const AUCTION_ERROR__ALREADY_REFUNDED = 0x1776; // 6006
+/** InsufficientLamports: The account does not have enough lamports. */
+export const AUCTION_ERROR__INSUFFICIENT_LAMPORTS = 0x1777; // 6007
+/** ArithmeticOverflow: Arithmetic overflow occurred while moving lamports. */
+export const AUCTION_ERROR__ARITHMETIC_OVERFLOW = 0x1778; // 6008
 
 export type AuctionError =
   | typeof AUCTION_ERROR__ALREADY_REFUNDED
   | typeof AUCTION_ERROR__ALREADY_RESOLVED
+  | typeof AUCTION_ERROR__ARITHMETIC_OVERFLOW
   | typeof AUCTION_ERROR__AUCTION_ENDED
   | typeof AUCTION_ERROR__AUCTION_HAS_BIDS
   | typeof AUCTION_ERROR__AUCTION_NOT_ENDED
   | typeof AUCTION_ERROR__AUCTION_NOT_RESOLVED
-  | typeof AUCTION_ERROR__CANNOT_REFUND_WINNER;
+  | typeof AUCTION_ERROR__CANNOT_REFUND_WINNER
+  | typeof AUCTION_ERROR__INSUFFICIENT_LAMPORTS;
 
 let auctionErrorMessages: Record<AuctionError, string> | undefined;
 if (process.env.NODE_ENV !== "production") {
   auctionErrorMessages = {
     [AUCTION_ERROR__ALREADY_REFUNDED]: `The bid has already been refunded.`,
     [AUCTION_ERROR__ALREADY_RESOLVED]: `The auction has already been resolved.`,
+    [AUCTION_ERROR__ARITHMETIC_OVERFLOW]: `Arithmetic overflow occurred while moving lamports.`,
     [AUCTION_ERROR__AUCTION_ENDED]: `The auction has already ended.`,
     [AUCTION_ERROR__AUCTION_HAS_BIDS]: `Cannot cancel an auction that received bids.`,
     [AUCTION_ERROR__AUCTION_NOT_ENDED]: `The auction has not ended yet.`,
     [AUCTION_ERROR__AUCTION_NOT_RESOLVED]: `The auction has not been resolved yet.`,
     [AUCTION_ERROR__CANNOT_REFUND_WINNER]: `The winner cannot claim a refund.`,
+    [AUCTION_ERROR__INSUFFICIENT_LAMPORTS]: `The account does not have enough lamports.`,
   };
 }
 

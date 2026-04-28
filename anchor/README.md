@@ -7,7 +7,7 @@ This template includes a simple SOL vault program built with [Anchor](https://ww
 The vault program is deployed on **devnet** at:
 
 ```
-F4jZpgbtTb6RWNWq6v35fUeiAsRJMrDczVPv9U23yXjB
+
 ```
 
 You can interact with it immediately by connecting your wallet to devnet.

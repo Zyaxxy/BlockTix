@@ -16,4 +16,8 @@ pub enum AuctionError {
     AuctionHasBids,
     #[msg("The bid has already been refunded.")]
     AlreadyRefunded,
+    #[msg("The account does not have enough lamports.")]
+    InsufficientLamports,
+    #[msg("Arithmetic overflow occurred while moving lamports.")]
+    ArithmeticOverflow,
 }

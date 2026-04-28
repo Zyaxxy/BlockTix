@@ -25,16 +25,19 @@ type AuctionCreateFormProps = {
 
 const BID_TOKEN_OPTIONS = [
   {
-    label: "USD",
+    label: "SOL (native)",
     mint: "So11111111111111111111111111111111111111112",
+    nativeSol: true,
   },
   {
     label: "USDC",
     mint: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+    nativeSol: false,
   },
   {
     label: "USDT",
     mint: "EJwZgeZrdC8TXTQbQBoL6bfuAnFUUy1PVCMB4DYPzVaS",
+    nativeSol: false,
   },
 ] as const;
 
@@ -257,9 +260,10 @@ export function AuctionCreateForm({
     }
 
     const previewWallet = executionWalletCandidates[0];
+    const selectedBidToken = BID_TOKEN_OPTIONS.find((option) => option.mint === bidMint) ?? BID_TOKEN_OPTIONS[0];
 
     const confirmed = window.confirm(
-      `Create auction with\n- Maker: ${previewWallet.address}\n- Prize NFT Mint: ${nftMint.trim()}\n- Bid Mint: ${bidMint.trim()}\n- End Time: ${new Date(unixSeconds * 1000).toISOString()}\n- Deposit Amount: ${parsedDepositAmount}`
+      `Create auction with\n- Maker: ${previewWallet.address}\n- Prize NFT Mint: ${nftMint.trim()}\n- Bid Asset: ${selectedBidToken.label}\n- End Time: ${new Date(unixSeconds * 1000).toISOString()}\n- Deposit Amount: ${parsedDepositAmount}`
     );
 
     if (!confirmed) {
@@ -289,6 +293,7 @@ export function AuctionCreateForm({
             seed: BigInt(parsedSeed),
             endTime: BigInt(unixSeconds),
             depositAmount: BigInt(parsedDepositAmount),
+            nativeSol: selectedBidToken.nativeSol,
           });
 
           setStatus("Simulating and submitting transaction...");
@@ -314,6 +319,7 @@ export function AuctionCreateForm({
             seed: parsedSeed,
             nftMint: nftMint.trim(),
             bidMint: bidMint.trim(),
+            nativeSol: selectedBidToken.nativeSol,
             endTime: new Date(unixSeconds * 1000).toISOString(),
             title: title.trim() || undefined,
             description: description.trim() || undefined,
@@ -394,7 +400,7 @@ export function AuctionCreateForm({
           </select>
         </label>
         <label className="flex flex-col gap-1 text-xs text-white/60" htmlFor="auction-bid-mint">
-          <span className="uppercase tracking-[0.2em] text-white/40">Bid Token Mint</span>
+          <span className="uppercase tracking-[0.2em] text-white/40">Bid Asset</span>
           <select
             id="auction-bid-mint"
             value={bidMint}

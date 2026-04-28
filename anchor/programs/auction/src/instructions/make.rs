@@ -64,6 +64,7 @@ impl<'info> MakeAuction<'info> {
         &mut self,
         seed: u64,
         end_time: i64,
+        native_sol: bool,
         bumps: &MakeAuctionBumps,
     ) -> Result<()> {
         self.auction.set_inner(Auction {
@@ -71,6 +72,7 @@ impl<'info> MakeAuction<'info> {
             maker: self.maker.key(),
             nft_mint: self.nft_mint.key(),
             bid_mint: self.bid_mint.key(),
+            native_sol,
             end_time,
             bump: bumps.auction,
             resolved: false,

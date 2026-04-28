@@ -21,6 +21,7 @@ type CreateAuctionRequest = {
   seed: number;
   nftMint: string;
   bidMint: string;
+  nativeSol?: boolean;
   endTime: string;
   eventId?: string;
   title?: string;
@@ -215,6 +216,7 @@ export async function POST(request: Request) {
     image_url: body.imageUrl?.trim() || null,
     nft_mint: body.nftMint.trim(),
     bid_mint: body.bidMint.trim(),
+    native_sol: Boolean(body.nativeSol),
     end_time: endTimeIso,
     status: "active" as const,
     highest_bid_amount: 0,

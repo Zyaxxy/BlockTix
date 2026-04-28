@@ -25,6 +25,7 @@ export type CreateAuctionInput = {
   seed: number;
   nftMint: string;
   bidMint: string;
+  nativeSol: boolean;
   endTime: string;
   eventId?: string;
   title?: string;

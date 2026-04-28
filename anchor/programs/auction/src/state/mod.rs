@@ -7,6 +7,7 @@ pub struct Auction {
     pub maker: Pubkey,
     pub nft_mint: Pubkey,
     pub bid_mint: Pubkey,
+    pub native_sol: bool,
     pub end_time: i64,
     pub bump: u8,
     pub resolved: bool,

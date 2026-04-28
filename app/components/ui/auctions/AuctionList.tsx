@@ -51,6 +51,9 @@ export function AuctionList({ auctions, emptyMessage }: AuctionListProps) {
             <p className="mt-2 text-sm text-white/70">{auction.description}</p>
           ) : null}
           <p className="mt-2 text-xs text-white/50">
+            Bid asset: {auction.nativeSol ? "SOL (native)" : auction.bidMint}
+          </p>
+          <p className="mt-2 text-xs text-white/50">
             Highest bid: ${solToUsd(auction.highestBidAmount ?? 0).toFixed(2)}
           </p>
         </article>

@@ -57,6 +57,7 @@ export type Auction = {
   maker: Address;
   nftMint: Address;
   bidMint: Address;
+  nativeSol: boolean;
   endTime: bigint;
   bump: number;
   resolved: boolean;
@@ -69,6 +70,7 @@ export type AuctionArgs = {
   maker: Address;
   nftMint: Address;
   bidMint: Address;
+  nativeSol: boolean;
   endTime: number | bigint;
   bump: number;
   resolved: boolean;
@@ -85,6 +87,7 @@ export function getAuctionEncoder(): FixedSizeEncoder<AuctionArgs> {
       ["maker", getAddressEncoder()],
       ["nftMint", getAddressEncoder()],
       ["bidMint", getAddressEncoder()],
+      ["nativeSol", getBooleanEncoder()],
       ["endTime", getI64Encoder()],
       ["bump", getU8Encoder()],
       ["resolved", getBooleanEncoder()],
@@ -103,6 +106,7 @@ export function getAuctionDecoder(): FixedSizeDecoder<Auction> {
     ["maker", getAddressDecoder()],
     ["nftMint", getAddressDecoder()],
     ["bidMint", getAddressDecoder()],
+    ["nativeSol", getBooleanDecoder()],
     ["endTime", getI64Decoder()],
     ["bump", getU8Decoder()],
     ["resolved", getBooleanDecoder()],
@@ -170,5 +174,5 @@ export async function fetchAllMaybeAuction(
 }
 
 export function getAuctionSize(): number {
-  return 162;
+  return 163;
 }

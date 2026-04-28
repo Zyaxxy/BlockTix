@@ -8,6 +8,7 @@ use anchor_spl::{
 };
 
 use super::error::AuctionError;
+use super::transfer_lamports;
 use crate::{Auction, Bids};
 
 #[derive(Accounts)]
@@ -82,23 +83,31 @@ impl<'info> ClaimRefund<'info> {
             &[self.auction.bump],
         ]];
 
-        // Transfering the losing amount back to the bidder
-        let transfer_ctx = CpiContext::new_with_signer(
-            self.token_program.to_account_info(),
-            TransferChecked {
-                from: self.vault_bid.to_account_info(),
-                to: self.bidder_bid_ata.to_account_info(),
-                mint: self.bid_mint.to_account_info(),
-                authority: self.auction.to_account_info(),
-            },
-            signer_seeds,
-        );
-        transfer_checked(transfer_ctx, self.bid_record.amount, self.bid_mint.decimals)?;
+        if self.auction.native_sol {
+            transfer_lamports(
+                &self.auction.to_account_info(),
+                &self.bidder.to_account_info(),
+                self.bid_record.amount,
+            )?;
+        } else {
+            // Transfering the losing amount back to the bidder
+            let transfer_ctx = CpiContext::new_with_signer(
+                self.token_program.to_account_info(),
+                TransferChecked {
+                    from: self.vault_bid.to_account_info(),
+                    to: self.bidder_bid_ata.to_account_info(),
+                    mint: self.bid_mint.to_account_info(),
+                    authority: self.auction.to_account_info(),
+                },
+                signer_seeds,
+            );
+            transfer_checked(transfer_ctx, self.bid_record.amount, self.bid_mint.decimals)?;
+        }
 
         // Last one out turns off the lights — if all tokens have been withdrawn,
         // we close the vault ATA and the Auction PDA so the maker gets their rent back.
         self.vault_bid.reload()?;
-        if self.vault_bid.amount == 0 {
+        if !self.auction.native_sol && self.vault_bid.amount == 0 {
             // Close the now-empty token vault
             close_account(CpiContext::new_with_signer(
                 self.token_program.to_account_info(),

@@ -1,9 +1,11 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{
-    transfer_checked, Mint, TokenAccount, TokenInterface, TransferChecked,
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token_interface::{transfer_checked, Mint, TokenAccount, TokenInterface, TransferChecked},
 };
 
 use super::error::AuctionError;
+use super::transfer_lamports;
 use crate::{Auction, Bids};
 
 #[derive(Accounts)]
@@ -23,7 +25,12 @@ pub struct Bid<'info> {
     )]
     pub bid_record: Account<'info, Bids>,
 
-    #[account(mut)]
+    #[account(
+        init_if_needed,
+        payer = bidder,
+        associated_token::mint = bid_mint,
+        associated_token::authority = bidder,
+    )]
     pub bidder_bid_ata: InterfaceAccount<'info, TokenAccount>,
 
     #[account(
@@ -36,6 +43,7 @@ pub struct Bid<'info> {
     #[account(address = auction.bid_mint)]
     pub bid_mint: InterfaceAccount<'info, Mint>,
 
+    pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
     pub token_program: Interface<'info, TokenInterface>,
 }
@@ -69,15 +77,24 @@ impl<'info> Bid<'info> {
             self.auction.highest_bid_amount = self.bid_record.amount;
         }
 
-        // Transferring tokens from the Bidder to the shared Vault
-        let transfer_accounts = TransferChecked {
-            from: self.bidder_bid_ata.to_account_info(),
-            to: self.vault_bid.to_account_info(),
-            mint: self.bid_mint.to_account_info(),
-            authority: self.bidder.to_account_info(),
-        };
+        if self.auction.native_sol {
+            // Native SOL uses the auction PDA itself as escrow.
+            transfer_lamports(
+                &self.bidder.to_account_info(),
+                &self.auction.to_account_info(),
+                additional_amount,
+            )
+        } else {
+            // SPL token bids are deposited into the shared vault ATA.
+            let transfer_accounts = TransferChecked {
+                from: self.bidder_bid_ata.to_account_info(),
+                to: self.vault_bid.to_account_info(),
+                mint: self.bid_mint.to_account_info(),
+                authority: self.bidder.to_account_info(),
+            };
 
-        let cpi_ctx = CpiContext::new(self.token_program.to_account_info(), transfer_accounts);
-        transfer_checked(cpi_ctx, additional_amount, self.bid_mint.decimals)
+            let cpi_ctx = CpiContext::new(self.token_program.to_account_info(), transfer_accounts);
+            transfer_checked(cpi_ctx, additional_amount, self.bid_mint.decimals)
+        }
     }
 }

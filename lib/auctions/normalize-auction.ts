@@ -2,7 +2,7 @@ export const AUCTIONS_TABLE = "auctions";
 export const AUCTION_ACTIVITY_TABLE = "auction_activity";
 
 export const AUCTION_SELECT =
-  "id, auction_address, seed, organizer_uid, maker_wallet, event_id, title, description, image_url, nft_mint, bid_mint, end_time, status, highest_bidder, highest_bid_amount, resolved, create_signature, resolve_signature, cancel_signature, resolved_at, cancelled_at, created_at, updated_at";
+  "id, auction_address, seed, organizer_uid, maker_wallet, event_id, title, description, image_url, nft_mint, bid_mint, native_sol, end_time, status, highest_bidder, highest_bid_amount, resolved, create_signature, resolve_signature, cancel_signature, resolved_at, cancelled_at, created_at, updated_at";
 
 export type AuctionStatus = "active" | "resolved" | "cancelled";
 
@@ -19,6 +19,7 @@ export type OrganizerAuction = {
   imageUrl: string | null;
   nftMint: string;
   bidMint: string;
+  nativeSol: boolean;
   endTime: string;
   status: AuctionStatus;
   highestBidder: string | null;
@@ -64,6 +65,7 @@ export const normalizeAuction = (row: {
   image_url: string | null;
   nft_mint: string;
   bid_mint: string;
+  native_sol: boolean;
   end_time: string;
   status: AuctionStatus;
   highest_bidder: string | null;
@@ -89,6 +91,7 @@ export const normalizeAuction = (row: {
   imageUrl: row.image_url,
   nftMint: row.nft_mint,
   bidMint: row.bid_mint,
+  nativeSol: row.native_sol,
   endTime: row.end_time,
   status: row.status,
   highestBidder: row.highest_bidder,

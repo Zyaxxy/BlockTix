@@ -57,6 +57,8 @@ export type BidInstruction<
   TAccountBidderBidAta extends string | AccountMeta<string> = string,
   TAccountVaultBid extends string | AccountMeta<string> = string,
   TAccountBidMint extends string | AccountMeta<string> = string,
+  TAccountAssociatedTokenProgram extends string | AccountMeta<string> =
+    "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL",
   TAccountSystemProgram extends string | AccountMeta<string> =
     "11111111111111111111111111111111",
   TAccountTokenProgram extends string | AccountMeta<string> =
@@ -85,6 +87,9 @@ export type BidInstruction<
       TAccountBidMint extends string
         ? ReadonlyAccount<TAccountBidMint>
         : TAccountBidMint,
+      TAccountAssociatedTokenProgram extends string
+        ? ReadonlyAccount<TAccountAssociatedTokenProgram>
+        : TAccountAssociatedTokenProgram,
       TAccountSystemProgram extends string
         ? ReadonlyAccount<TAccountSystemProgram>
         : TAccountSystemProgram,
@@ -136,15 +141,17 @@ export type BidAsyncInput<
   TAccountBidderBidAta extends string = string,
   TAccountVaultBid extends string = string,
   TAccountBidMint extends string = string,
+  TAccountAssociatedTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
   TAccountTokenProgram extends string = string,
 > = {
   bidder: TransactionSigner<TAccountBidder>;
   auction: Address<TAccountAuction>;
   bidRecord?: Address<TAccountBidRecord>;
-  bidderBidAta: Address<TAccountBidderBidAta>;
+  bidderBidAta?: Address<TAccountBidderBidAta>;
   vaultBid?: Address<TAccountVaultBid>;
   bidMint: Address<TAccountBidMint>;
+  associatedTokenProgram?: Address<TAccountAssociatedTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   tokenProgram?: Address<TAccountTokenProgram>;
   additionalAmount: BidInstructionDataArgs["additionalAmount"];
@@ -157,6 +164,7 @@ export async function getBidInstructionAsync<
   TAccountBidderBidAta extends string,
   TAccountVaultBid extends string,
   TAccountBidMint extends string,
+  TAccountAssociatedTokenProgram extends string,
   TAccountSystemProgram extends string,
   TAccountTokenProgram extends string,
   TProgramAddress extends Address = typeof AUCTION_PROGRAM_ADDRESS,
@@ -168,6 +176,7 @@ export async function getBidInstructionAsync<
     TAccountBidderBidAta,
     TAccountVaultBid,
     TAccountBidMint,
+    TAccountAssociatedTokenProgram,
     TAccountSystemProgram,
     TAccountTokenProgram
   >,
@@ -181,6 +190,7 @@ export async function getBidInstructionAsync<
     TAccountBidderBidAta,
     TAccountVaultBid,
     TAccountBidMint,
+    TAccountAssociatedTokenProgram,
     TAccountSystemProgram,
     TAccountTokenProgram
   >
@@ -196,6 +206,10 @@ export async function getBidInstructionAsync<
     bidderBidAta: { value: input.bidderBidAta ?? null, isWritable: true },
     vaultBid: { value: input.vaultBid ?? null, isWritable: true },
     bidMint: { value: input.bidMint ?? null, isWritable: false },
+    associatedTokenProgram: {
+      value: input.associatedTokenProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
   };
@@ -218,6 +232,23 @@ export async function getBidInstructionAsync<
       ],
     });
   }
+  if (!accounts.bidderBidAta.value) {
+    accounts.bidderBidAta.value = await getProgramDerivedAddress({
+      programAddress:
+        "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL" as Address<"ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL">,
+      seeds: [
+        getAddressEncoder().encode(expectAddress(accounts.bidder.value)),
+        getBytesEncoder().encode(
+          new Uint8Array([
+            6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235,
+            121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133,
+            126, 255, 0, 169,
+          ]),
+        ),
+        getAddressEncoder().encode(expectAddress(accounts.bidMint.value)),
+      ],
+    });
+  }
   if (!accounts.vaultBid.value) {
     accounts.vaultBid.value = await getProgramDerivedAddress({
       programAddress:
@@ -235,6 +266,10 @@ export async function getBidInstructionAsync<
       ],
     });
   }
+  if (!accounts.associatedTokenProgram.value) {
+    accounts.associatedTokenProgram.value =
+      "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL" as Address<"ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -253,6 +288,7 @@ export async function getBidInstructionAsync<
       getAccountMeta(accounts.bidderBidAta),
       getAccountMeta(accounts.vaultBid),
       getAccountMeta(accounts.bidMint),
+      getAccountMeta(accounts.associatedTokenProgram),
       getAccountMeta(accounts.systemProgram),
       getAccountMeta(accounts.tokenProgram),
     ],
@@ -266,6 +302,7 @@ export async function getBidInstructionAsync<
     TAccountBidderBidAta,
     TAccountVaultBid,
     TAccountBidMint,
+    TAccountAssociatedTokenProgram,
     TAccountSystemProgram,
     TAccountTokenProgram
   >);
@@ -278,6 +315,7 @@ export type BidInput<
   TAccountBidderBidAta extends string = string,
   TAccountVaultBid extends string = string,
   TAccountBidMint extends string = string,
+  TAccountAssociatedTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
   TAccountTokenProgram extends string = string,
 > = {
@@ -287,6 +325,7 @@ export type BidInput<
   bidderBidAta: Address<TAccountBidderBidAta>;
   vaultBid: Address<TAccountVaultBid>;
   bidMint: Address<TAccountBidMint>;
+  associatedTokenProgram?: Address<TAccountAssociatedTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   tokenProgram?: Address<TAccountTokenProgram>;
   additionalAmount: BidInstructionDataArgs["additionalAmount"];
@@ -299,6 +338,7 @@ export function getBidInstruction<
   TAccountBidderBidAta extends string,
   TAccountVaultBid extends string,
   TAccountBidMint extends string,
+  TAccountAssociatedTokenProgram extends string,
   TAccountSystemProgram extends string,
   TAccountTokenProgram extends string,
   TProgramAddress extends Address = typeof AUCTION_PROGRAM_ADDRESS,
@@ -310,6 +350,7 @@ export function getBidInstruction<
     TAccountBidderBidAta,
     TAccountVaultBid,
     TAccountBidMint,
+    TAccountAssociatedTokenProgram,
     TAccountSystemProgram,
     TAccountTokenProgram
   >,
@@ -322,6 +363,7 @@ export function getBidInstruction<
   TAccountBidderBidAta,
   TAccountVaultBid,
   TAccountBidMint,
+  TAccountAssociatedTokenProgram,
   TAccountSystemProgram,
   TAccountTokenProgram
 > {
@@ -336,6 +378,10 @@ export function getBidInstruction<
     bidderBidAta: { value: input.bidderBidAta ?? null, isWritable: true },
     vaultBid: { value: input.vaultBid ?? null, isWritable: true },
     bidMint: { value: input.bidMint ?? null, isWritable: false },
+    associatedTokenProgram: {
+      value: input.associatedTokenProgram ?? null,
+      isWritable: false,
+    },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
   };
@@ -348,6 +394,10 @@ export function getBidInstruction<
   const args = { ...input };
 
   // Resolve default values.
+  if (!accounts.associatedTokenProgram.value) {
+    accounts.associatedTokenProgram.value =
+      "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL" as Address<"ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL">;
+  }
   if (!accounts.systemProgram.value) {
     accounts.systemProgram.value =
       "11111111111111111111111111111111" as Address<"11111111111111111111111111111111">;
@@ -366,6 +416,7 @@ export function getBidInstruction<
       getAccountMeta(accounts.bidderBidAta),
       getAccountMeta(accounts.vaultBid),
       getAccountMeta(accounts.bidMint),
+      getAccountMeta(accounts.associatedTokenProgram),
       getAccountMeta(accounts.systemProgram),
       getAccountMeta(accounts.tokenProgram),
     ],
@@ -379,6 +430,7 @@ export function getBidInstruction<
     TAccountBidderBidAta,
     TAccountVaultBid,
     TAccountBidMint,
+    TAccountAssociatedTokenProgram,
     TAccountSystemProgram,
     TAccountTokenProgram
   >);
@@ -396,8 +448,9 @@ export type ParsedBidInstruction<
     bidderBidAta: TAccountMetas[3];
     vaultBid: TAccountMetas[4];
     bidMint: TAccountMetas[5];
-    systemProgram: TAccountMetas[6];
-    tokenProgram: TAccountMetas[7];
+    associatedTokenProgram: TAccountMetas[6];
+    systemProgram: TAccountMetas[7];
+    tokenProgram: TAccountMetas[8];
   };
   data: BidInstructionData;
 };
@@ -410,7 +463,7 @@ export function parseBidInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>,
 ): ParsedBidInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 8) {
+  if (instruction.accounts.length < 9) {
     // TODO: Coded error.
     throw new Error("Not enough accounts");
   }
@@ -429,6 +482,7 @@ export function parseBidInstruction<
       bidderBidAta: getNextAccount(),
       vaultBid: getNextAccount(),
       bidMint: getNextAccount(),
+      associatedTokenProgram: getNextAccount(),
       systemProgram: getNextAccount(),
       tokenProgram: getNextAccount(),
     },

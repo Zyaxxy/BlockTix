@@ -6,6 +6,7 @@ use anchor_spl::token_interface::{
 };
 
 use super::error::AuctionError;
+use super::transfer_lamports;
 use crate::{Auction, Bids};
 
 #[derive(Accounts)]
@@ -122,21 +123,29 @@ impl<'info> ResolveAuction<'info> {
             signer_seeds,
         ))?;
 
-        // Transfering the Winning Bid (USDC/Tokens) to the Maker
-        let transfer_bid_ctx = CpiContext::new_with_signer(
-            self.token_program.to_account_info(),
-            TransferChecked {
-                from: self.vault_bid.to_account_info(),
-                to: self.maker_bid_ata.to_account_info(),
-                mint: self.bid_mint.to_account_info(),
-                authority: self.auction.to_account_info(),
-            },
-            signer_seeds,
-        );
-        transfer_checked(
-            transfer_bid_ctx,
-            self.auction.highest_bid_amount,
-            self.bid_mint.decimals,
-        )
+        if self.auction.native_sol {
+            transfer_lamports(
+                &self.auction.to_account_info(),
+                &self.maker.to_account_info(),
+                self.auction.highest_bid_amount,
+            )
+        } else {
+            // Transfering the Winning Bid (USDC/Tokens) to the Maker
+            let transfer_bid_ctx = CpiContext::new_with_signer(
+                self.token_program.to_account_info(),
+                TransferChecked {
+                    from: self.vault_bid.to_account_info(),
+                    to: self.maker_bid_ata.to_account_info(),
+                    mint: self.bid_mint.to_account_info(),
+                    authority: self.auction.to_account_info(),
+                },
+                signer_seeds,
+            );
+            transfer_checked(
+                transfer_bid_ctx,
+                self.auction.highest_bid_amount,
+                self.bid_mint.decimals,
+            )
+        }
     }
 }

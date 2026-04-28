@@ -16,8 +16,9 @@ pub mod auction {
         seed: u64,
         end_time: i64,
         deposit_amount: u64,
+        native_sol: bool,
     ) -> Result<()> {
-        ctx.accounts.init_auction(seed, end_time, &ctx.bumps)?;
+        ctx.accounts.init_auction(seed, end_time, native_sol, &ctx.bumps)?;
         ctx.accounts.deposit_prize(deposit_amount)
     }
 
