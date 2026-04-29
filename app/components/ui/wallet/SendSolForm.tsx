@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Send, Loader2 } from "lucide-react";
 import { sendSol, isValidSolanaAddress } from "@/lib/solana/transfer";
-import { solToUsd, usdToSol } from "@/lib/solana/conversions";
+import { solToInr, inrToSol } from "@/lib/solana/conversions";
 
 import type { DynamicWalletLike } from "@/lib/solana/candy-machine";
 
@@ -26,14 +26,14 @@ export function SendSolForm({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const amountInUsd = parseFloat(amount);
-  const amountInSol = usdToSol(amountInUsd);
-  const currentBalanceInUsd = currentBalance !== null ? solToUsd(currentBalance) : null;
+  const amountInInr = parseFloat(amount);
+  const amountInSol = inrToSol(amountInInr);
+  const currentBalanceInInr = currentBalance !== null ? solToInr(currentBalance) : null;
 
-  const isValidAmount = !isNaN(amountInUsd) && amountInUsd > 0;
+  const isValidAmount = !isNaN(amountInInr) && amountInInr > 0;
   const isValidRecipient = isValidSolanaAddress(recipientAddress);
   const hasSufficientBalance =
-    currentBalanceInUsd !== null && isValidAmount && amountInUsd <= currentBalanceInUsd;
+    currentBalanceInInr !== null && isValidAmount && amountInInr <= currentBalanceInInr;
   const canSend = wallet && isValidAmount && isValidRecipient && hasSufficientBalance && !sending;
 
 
@@ -46,7 +46,7 @@ export function SendSolForm({
 
     try {
       const result = await sendSol(wallet, recipientAddress, amountInSol);
-      setSuccess(`Sent INR ${amountInUsd.toFixed(2)} rupees! Signature: ${result.signature.slice(0, 8)}...`);
+      setSuccess(`Sent INR ${amountInInr.toFixed(2)} rupees! Signature: ${result.signature.slice(0, 8)}...`);
 
       setAmount("");
       setRecipientAddress("");
@@ -56,13 +56,13 @@ export function SendSolForm({
     } finally {
       setSending(false);
     }
-  }, [canSend, wallet, recipientAddress, parsedAmount, onTransferComplete]);
+  }, [canSend, wallet, recipientAddress, amountInSol, amountInInr, onTransferComplete]);
 
   const setMaxAmount = useCallback(() => {
     if (currentBalance !== null && currentBalance > 0) {
       const maxSendSol = Math.max(0, currentBalance - 0.00001);
-      const maxSendUsd = solToUsd(maxSendSol);
-      setAmount(maxSendUsd.toFixed(2));
+      const maxSendInr = solToInr(maxSendSol);
+      setAmount(maxSendInr.toFixed(2));
     }
   }, [currentBalance]);
 
@@ -119,10 +119,14 @@ export function SendSolForm({
             min="0"
             className="w-full rounded-lg border border-white/20 bg-black/25 px-3 py-2 text-sm text-white placeholder-white/40 focus:border-emerald-300/50 focus:outline-none"
           />
-          {currentBalanceInUsd !== null && (
+          {currentBalanceInInr !== null && (
             <p className="mt-1 text-xs text-white/50">
-              Available: INR {currentBalanceInUsd.toFixed(2)}
+              Available: INR {currentBalanceInInr.toFixed(2)} (~ {currentBalance?.toFixed(4)} SOL)
             </p>
+          )}
+
+          {amount && isValidAmount && (
+            <p className="mt-1 text-xs text-white/45">~ {amountInSol.toFixed(6)} SOL</p>
           )}
 
           {amount && isValidAmount && !hasSufficientBalance && (

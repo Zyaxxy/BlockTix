@@ -33,11 +33,10 @@ import {
   toAuctionInstructionSigner,
 } from "@/lib/solana/auction-transaction";
 import {
-  solToUsd,
-  usdToLamports,
-  solToLamports,
-  lamportsToUsd,
-  usdToSol,
+  solToInr,
+  inrToLamports,
+  lamportsToSol,
+  inrToSol,
 } from "@/lib/solana/conversions";
 
 
@@ -78,6 +77,45 @@ const formatDateTime = (iso: string) => {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "Unknown";
   return date.toLocaleString();
+};
+
+const USDC_MINT = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+const USDT_MINT = "EJwZgeZrdC8TXTQbQBoL6bfuAnFUUy1PVCMB4DYPzVaS";
+const TOKEN_DECIMALS = 6;
+const TOKEN_BASE = 10 ** TOKEN_DECIMALS;
+
+const getBidAssetSymbol = (auction: OrganizerAuction) => {
+  if (auction.nativeSol) return "SOL";
+  if (auction.bidMint === USDC_MINT) return "USDC";
+  if (auction.bidMint === USDT_MINT) return "USDT";
+  return "TOKEN";
+};
+
+const toBidBaseUnits = (auction: OrganizerAuction, amountInput: string): bigint => {
+  if (auction.nativeSol) {
+    return inrToLamports(amountInput);
+  }
+
+  const parsed = Number(amountInput);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 0n;
+  }
+
+  return BigInt(Math.floor(parsed * TOKEN_BASE));
+};
+
+const formatBidAmount = (auction: OrganizerAuction, amount: number | null | undefined) => {
+  if (!Number.isFinite(amount ?? NaN) || (amount ?? 0) <= 0) {
+    return null;
+  }
+
+  if (auction.nativeSol) {
+    const solAmount = lamportsToSol(amount as number);
+    return `INR ${solToInr(solAmount).toFixed(2)} (~ ${solAmount.toFixed(4)} SOL)`;
+  }
+
+  const symbol = getBidAssetSymbol(auction);
+  return `${((amount as number) / TOKEN_BASE).toFixed(4)} ${symbol}`;
 };
 
 export default function AuctionDetailPage() {
@@ -206,8 +244,9 @@ export default function AuctionDetailPage() {
     };
   }, [auction, now]);
 
+  const bidAssetSymbol = auction ? getBidAssetSymbol(auction) : "SOL";
+
   const walletAddress = activeSolWallet?.address?.trim() ?? null;
-  const isCreator = Boolean(dynamicUserId && auction && dynamicUserId === auction.creatorUid);
   const isMakerWallet = Boolean(
     walletAddress && auction && walletAddress.toLowerCase() === auction.makerWallet.toLowerCase()
   );
@@ -282,7 +321,9 @@ export default function AuctionDetailPage() {
     }
 
     const approved = window.confirm(
-      `Bid INR ${bidAmount} rupees (${usdToSol(bidAmount).toFixed(4)} SOL) on auction ${auction.auctionAddress}.\nWallet: ${bidderWallet.address}\nCluster: devnet (configured RPC)`
+      auction.nativeSol
+        ? `Bid INR ${bidAmount} rupees (${inrToSol(bidAmount).toFixed(4)} SOL) on auction ${auction.auctionAddress}.\nWallet: ${bidderWallet.address}\nCluster: devnet (configured RPC)`
+        : `Bid ${Number(bidAmount).toFixed(4)} ${bidAssetSymbol} on auction ${auction.auctionAddress}.\nWallet: ${bidderWallet.address}\nCluster: devnet (configured RPC)`
     );
 
     if (!approved) return;
@@ -295,13 +336,17 @@ export default function AuctionDetailPage() {
       const bidderAddress = bidderWallet.address;
       const bidderSigner = toAuctionInstructionSigner(bidderAddress);
       const bidderBidAta = deriveAssociatedTokenAddress(bidderAddress, auction.bidMint);
-      const lamports = usdToLamports(bidAmount);
+      const additionalAmount = toBidBaseUnits(auction, bidAmount);
+      if (additionalAmount <= 0n) {
+        throw new Error("Bid amount must be a positive value.");
+      }
+
       const instruction = await buildBidInstruction({
         bidder: bidderSigner,
         auction: toAddress(auction.auctionAddress),
         bidderBidAta: toAddress(bidderBidAta),
         bidMint: toAddress(auction.bidMint),
-        additionalAmount: lamports,
+        additionalAmount,
       });
 
 
@@ -311,16 +356,16 @@ export default function AuctionDetailPage() {
         wallet: bidderWallet as Parameters<typeof sendAuctionInstructionWithSimulation>[0]["wallet"],
       });
 
-      const amountInSol = usdToSol(bidAmount);
-      const projectedHighestSol = (auction.highestBidAmount ?? 0) + amountInSol;
+      const amountInBaseUnits = Number(additionalAmount);
+      const projectedHighestBaseUnits = (auction.highestBidAmount ?? 0) + amountInBaseUnits;
 
       const bidResult = await recordAuctionBid({
         dynamicUserId,
         auctionId: auction.id,
         bidderWallet: bidderAddress,
-        amount: amountInSol,
+        amount: amountInBaseUnits,
         signature: tx.signature,
-        highestBidAmount: projectedHighestSol,
+        highestBidAmount: projectedHighestBaseUnits,
       });
 
 
@@ -554,7 +599,7 @@ export default function AuctionDetailPage() {
           <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-white/50">Highest Bid</p>
             <p className="mt-2 text-3xl font-semibold text-emerald-300">
-              INR {solToUsd(auction.highestBidAmount ?? 0).toFixed(2)}
+              {formatBidAmount(auction, auction.highestBidAmount) ?? "No bids yet"}
             </p>
             <p className="mt-2 break-all text-xs text-white/60">
               Bidder: {auction.highestBidder ?? "No bids yet"}
@@ -634,11 +679,12 @@ export default function AuctionDetailPage() {
                         value={bidAmount}
                         onChange={(event) => setBidAmount(event.target.value)}
                         className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm focus:border-emerald-500/50 outline-none transition"
-                        placeholder="INR Amount"
+                        placeholder={auction.nativeSol ? "INR Amount" : `${bidAssetSymbol} Amount`}
                         type="number"
+                        step={auction.nativeSol ? "1" : "0.000001"}
                       />
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/40 pointer-events-none">
-                        INR
+                        {auction.nativeSol ? "INR" : bidAssetSymbol}
                       </div>
 
                     </div>
@@ -669,7 +715,7 @@ export default function AuctionDetailPage() {
                     </button>
                   </div>
                   <p className="mt-2 text-[10px] text-white/40 italic">
-                    If you bid and didn't win, reclaim your tokens here after resolution.
+                    If you bid and did not win, reclaim your tokens here after resolution.
                   </p>
                 </div>
               </div>
@@ -692,7 +738,7 @@ export default function AuctionDetailPage() {
                   className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm"
                 >
                   <p className="font-medium text-white/90">
-                    {entry.actionType.toUpperCase()} {entry.amount ? `• INR ${solToUsd(entry.amount).toFixed(2)}` : ""}
+                    {entry.actionType.toUpperCase()} {formatBidAmount(auction, entry.amount) ? `• ${formatBidAmount(auction, entry.amount)}` : ""}
                   </p>
                   <p className="mt-1 break-all text-xs text-white/60">
                     Actor: {entry.actorWallet ?? entry.actorUid ?? "Unknown"}

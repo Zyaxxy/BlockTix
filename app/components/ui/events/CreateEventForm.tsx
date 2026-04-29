@@ -8,7 +8,7 @@ import {
   solToLamports,
   uploadTicketMetadataJson,
 } from "@/lib/solana/candy-machine";
-import { solToUsd, usdToSol } from "@/lib/solana/conversions";
+import { inrToSol } from "@/lib/solana/conversions";
 
 import {
   createDraftEvent,
@@ -61,10 +61,10 @@ export function CreateEventForm({
   const [endDate, setEndDate] = useState("");
   const [symbol, setSymbol] = useState("BTIX");
 
-  const [priceUsd, setPriceUsd] = useState("10"); // Default 10 INR
+  const [priceInr, setPriceInr] = useState("10"); // Default 10 INR
   const [totalSupply, setTotalSupply] = useState("250");
   const [mintLimit, setMintLimit] = useState("2");
-  const [botTaxUsd, setBotTaxUsd] = useState("1"); // Default 1 INR
+  const [botTaxInr, setBotTaxInr] = useState("1"); // Default 1 INR
   const [deployNow, setDeployNow] = useState(true);
 
   if (!open) return null;
@@ -95,7 +95,7 @@ export function CreateEventForm({
     setDeployAttemptId(attemptId);
 
     const parsedSupply = Number(totalSupply);
-    const parsedPriceUsd = Number(priceUsd);
+    const parsedPriceInr = Number(priceInr);
 
 
     if (!name.trim()) {
@@ -108,7 +108,7 @@ export function CreateEventForm({
       return;
     }
 
-    if (!Number.isFinite(parsedPriceUsd) || parsedPriceUsd < 0) {
+    if (!Number.isFinite(parsedPriceInr) || parsedPriceInr < 0) {
       setError("Price in INR must be a non-negative number.");
       return;
     }
@@ -116,7 +116,7 @@ export function CreateEventForm({
 
     setIsSubmitting(true);
 
-    const priceSol = usdToSol(parsedPriceUsd);
+    const priceSol = inrToSol(parsedPriceInr);
     const priceLamports = solToLamports(priceSol);
 
     const createResult = await createDraftEvent({
@@ -196,7 +196,7 @@ export function CreateEventForm({
           saleStartsAt: eventDate || undefined,
           saleEndsAt: endDate || undefined,
           botTaxLamports:
-            Number(botTaxUsd) > 0 ? solToLamports(usdToSol(Number(botTaxUsd))) : undefined,
+            Number(botTaxInr) > 0 ? solToLamports(inrToSol(Number(botTaxInr))) : undefined,
 
         });
 
@@ -311,8 +311,8 @@ export function CreateEventForm({
               maxLength={10}
             />
             <input
-              value={priceUsd}
-              onChange={(event) => setPriceUsd(event.target.value)}
+              value={priceInr}
+              onChange={(event) => setPriceInr(event.target.value)}
               placeholder="Price (INR)"
               className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
             />
@@ -349,8 +349,8 @@ export function CreateEventForm({
               className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
             />
             <input
-              value={botTaxUsd}
-              onChange={(event) => setBotTaxUsd(event.target.value)}
+              value={botTaxInr}
+              onChange={(event) => setBotTaxInr(event.target.value)}
               placeholder="Bot tax (INR)"
               className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
             />

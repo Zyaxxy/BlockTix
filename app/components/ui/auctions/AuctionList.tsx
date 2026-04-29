@@ -3,7 +3,12 @@
 import Link from "next/link";
 import type { OrganizerAuction } from "@/lib/auctions";
 
-import { solToUsd } from "@/lib/solana/conversions";
+import { solToInr } from "@/lib/solana/conversions";
+
+const USDC_MINT = "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+const USDT_MINT = "EJwZgeZrdC8TXTQbQBoL6bfuAnFUUy1PVCMB4DYPzVaS";
+const TOKEN_DECIMALS = 6;
+const TOKEN_BASE = 10 ** TOKEN_DECIMALS;
 
 type AuctionListProps = {
   auctions: OrganizerAuction[];
@@ -13,6 +18,26 @@ type AuctionListProps = {
 const formatDate = (iso: string) => {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? "Unknown" : date.toLocaleString();
+};
+
+const getBidAssetSymbol = (auction: OrganizerAuction) => {
+  if (auction.nativeSol) return "SOL";
+  if (auction.bidMint === USDC_MINT) return "USDC";
+  if (auction.bidMint === USDT_MINT) return "USDT";
+  return "TOKEN";
+};
+
+const formatHighestBid = (auction: OrganizerAuction) => {
+  if (!auction.highestBidAmount || auction.highestBidAmount <= 0) {
+    return "No bids yet";
+  }
+
+  if (auction.nativeSol) {
+    const sol = auction.highestBidAmount / 1_000_000_000;
+    return `INR ${solToInr(sol).toFixed(2)} (~ ${sol.toFixed(4)} SOL)`;
+  }
+
+  return `${(auction.highestBidAmount / TOKEN_BASE).toFixed(4)} ${getBidAssetSymbol(auction)}`;
 };
 
 export function AuctionList({ auctions, emptyMessage }: AuctionListProps) {
@@ -54,7 +79,7 @@ export function AuctionList({ auctions, emptyMessage }: AuctionListProps) {
             Bid asset: {auction.nativeSol ? "SOL (native)" : auction.bidMint}
           </p>
           <p className="mt-2 text-xs text-white/50">
-            Highest bid: INR {solToUsd(auction.highestBidAmount ?? 0).toFixed(2)}
+            Highest bid: {formatHighestBid(auction)}
           </p>
         </article>
       ))}

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { RefreshCw, Copy, Check, Wallet } from "lucide-react";
 import { fetchSolBalance } from "@/lib/solana/balance";
-import { solToUsd } from "@/lib/solana/conversions";
+import { solToInr } from "@/lib/solana/conversions";
 
 
 type WalletOverviewProps = {
@@ -114,8 +114,11 @@ export function WalletOverview({
           </button>
         </div>
         <p className="mt-2 text-3xl font-semibold">
-          {balance !== null ? `INR ${solToUsd(balance).toFixed(2)}` : "—"}
+          {balance !== null ? `INR ${solToInr(balance).toFixed(2)}` : "—"}
         </p>
+        {balance !== null && (
+          <p className="mt-1 text-xs text-white/55">~ {balance.toFixed(4)} SOL</p>
+        )}
         {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
       </div>
     </motion.div>

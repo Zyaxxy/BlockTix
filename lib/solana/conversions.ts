@@ -1,23 +1,23 @@
 /**
- * Flat rate: 1 SOL = 100 USD
+ * Flat rate: 1 SOL = 10,000 INR
  */
-export const SOL_USD_RATE = 100;
+export const SOL_INR_RATE = 10_000;
 
 /**
- * Converts SOL to USD based on the flat rate.
+ * Converts SOL to INR based on the flat rate.
  */
-export const solToUsd = (sol: number | bigint): number => {
+export const solToInr = (sol: number | bigint): number => {
     const solNum = typeof sol === "bigint" ? Number(sol) : sol;
-    return solNum * SOL_USD_RATE;
+    return solNum * SOL_INR_RATE;
 };
 
 /**
- * Converts USD to SOL based on the flat rate.
+ * Converts INR to SOL based on the flat rate.
  */
-export const usdToSol = (usd: number | string): number => {
-    const usdNum = typeof usd === "string" ? parseFloat(usd) : usd;
-    if (isNaN(usdNum)) return 0;
-    return usdNum / SOL_USD_RATE;
+export const inrToSol = (inr: number | string): number => {
+    const inrNum = typeof inr === "string" ? parseFloat(inr) : inr;
+    if (isNaN(inrNum)) return 0;
+    return inrNum / SOL_INR_RATE;
 };
 
 /**
@@ -37,21 +37,28 @@ export const lamportsToSol = (lamports: number | bigint): number => {
 };
 
 /**
- * Converts USD to Lamports for on-chain usage.
- * Input: USD amount
+ * Converts INR to Lamports for on-chain usage.
+ * Input: INR amount
  * Output: Lamports (BigInt)
  */
-export const usdToLamports = (usd: number | string): bigint => {
-    const sol = usdToSol(usd);
+export const inrToLamports = (inr: number | string): bigint => {
+    const sol = inrToSol(inr);
     return solToLamports(sol);
 };
 
 /**
- * Converts Lamports to USD for display purposes.
+ * Converts Lamports to INR for display purposes.
  * Input: Lamports
- * Output: USD amount
+ * Output: INR amount
  */
-export const lamportsToUsd = (lamports: number | bigint): number => {
+export const lamportsToInr = (lamports: number | bigint): number => {
     const sol = lamportsToSol(lamports);
-    return solToUsd(sol);
+    return solToInr(sol);
 };
+
+// Backward-compatible aliases retained during INR migration.
+export const SOL_USD_RATE = SOL_INR_RATE;
+export const solToUsd = solToInr;
+export const usdToSol = inrToSol;
+export const usdToLamports = inrToLamports;
+export const lamportsToUsd = lamportsToInr;
