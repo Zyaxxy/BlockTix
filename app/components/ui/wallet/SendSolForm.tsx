@@ -20,7 +20,7 @@ export function SendSolForm({
   onTransferComplete,
 }: SendSolFormProps) {
   const [recipientAddress, setRecipientAddress] = useState("");
-  const [amount, setAmount] = useState(""); // This will now be in USD
+  const [amount, setAmount] = useState(""); // This amount is entered in INR
 
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export function SendSolForm({
 
     try {
       const result = await sendSol(wallet, recipientAddress, amountInSol);
-      setSuccess(`Sent $${amountInUsd.toFixed(2)} USD! Signature: ${result.signature.slice(0, 8)}...`);
+      setSuccess(`Sent INR ${amountInUsd.toFixed(2)} rupees! Signature: ${result.signature.slice(0, 8)}...`);
 
       setAmount("");
       setRecipientAddress("");
@@ -100,7 +100,7 @@ export function SendSolForm({
         <div className="liquid-glass rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
             <label className="text-xs uppercase tracking-[0.16em] text-white/50">
-              Amount (USD)
+              Amount (INR)
             </label>
 
             <button
@@ -121,7 +121,7 @@ export function SendSolForm({
           />
           {currentBalanceInUsd !== null && (
             <p className="mt-1 text-xs text-white/50">
-              Available: ${currentBalanceInUsd.toFixed(2)}
+              Available: INR {currentBalanceInUsd.toFixed(2)}
             </p>
           )}
 

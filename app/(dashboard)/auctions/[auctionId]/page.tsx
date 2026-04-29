@@ -95,7 +95,7 @@ export default function AuctionDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [isActionBusy, setIsActionBusy] = useState(false);
-  const [bidAmount, setBidAmount] = useState("10"); // Default 10 USD
+  const [bidAmount, setBidAmount] = useState("10"); // Default 10 INR
 
   const [now, setNow] = useState(() => Date.now());
 
@@ -282,7 +282,7 @@ export default function AuctionDetailPage() {
     }
 
     const approved = window.confirm(
-      `Bid $${bidAmount} (${usdToSol(bidAmount).toFixed(4)} SOL) on auction ${auction.auctionAddress}.\nWallet: ${bidderWallet.address}\nCluster: devnet (configured RPC)`
+      `Bid INR ${bidAmount} rupees (${usdToSol(bidAmount).toFixed(4)} SOL) on auction ${auction.auctionAddress}.\nWallet: ${bidderWallet.address}\nCluster: devnet (configured RPC)`
     );
 
     if (!approved) return;
@@ -554,7 +554,7 @@ export default function AuctionDetailPage() {
           <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-white/50">Highest Bid</p>
             <p className="mt-2 text-3xl font-semibold text-emerald-300">
-              ${solToUsd(auction.highestBidAmount ?? 0).toFixed(2)}
+              INR {solToUsd(auction.highestBidAmount ?? 0).toFixed(2)}
             </p>
             <p className="mt-2 break-all text-xs text-white/60">
               Bidder: {auction.highestBidder ?? "No bids yet"}
@@ -634,11 +634,11 @@ export default function AuctionDetailPage() {
                         value={bidAmount}
                         onChange={(event) => setBidAmount(event.target.value)}
                         className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm focus:border-emerald-500/50 outline-none transition"
-                        placeholder="USD Amount"
+                        placeholder="INR Amount"
                         type="number"
                       />
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/40 pointer-events-none">
-                        USD
+                        INR
                       </div>
 
                     </div>
@@ -692,7 +692,7 @@ export default function AuctionDetailPage() {
                   className="rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm"
                 >
                   <p className="font-medium text-white/90">
-                    {entry.actionType.toUpperCase()} {entry.amount ? `• $${solToUsd(entry.amount).toFixed(2)}` : ""}
+                    {entry.actionType.toUpperCase()} {entry.amount ? `• INR ${solToUsd(entry.amount).toFixed(2)}` : ""}
                   </p>
                   <p className="mt-1 break-all text-xs text-white/60">
                     Actor: {entry.actorWallet ?? entry.actorUid ?? "Unknown"}

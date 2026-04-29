@@ -62,8 +62,11 @@ export default function UserAuctionsPage() {
 
   const onCreated = (auction: OrganizerAuction) => {
     setMyAuctions((current) => [auction, ...current]);
-    setAuctions((current) => [auction, ...current]);
   };
+
+  const visibleAuctions = auctions.filter(
+    (auction) => !myAuctions.some((createdAuction) => createdAuction.id === auction.id)
+  );
 
   if (!ready || !dynamicUserId) {
     return (
@@ -104,7 +107,7 @@ export default function UserAuctionsPage() {
         </section>
 
         <AuctionList
-          auctions={auctions}
+          auctions={visibleAuctions}
           emptyMessage="No auctions available yet. Check back soon."
         />
       </div>

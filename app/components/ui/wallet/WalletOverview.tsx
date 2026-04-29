@@ -114,7 +114,7 @@ export function WalletOverview({
           </button>
         </div>
         <p className="mt-2 text-3xl font-semibold">
-          {balance !== null ? `$${solToUsd(balance).toFixed(2)}` : "—"}
+          {balance !== null ? `INR ${solToUsd(balance).toFixed(2)}` : "—"}
         </p>
         {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
       </div>

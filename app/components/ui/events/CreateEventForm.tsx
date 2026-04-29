@@ -61,10 +61,10 @@ export function CreateEventForm({
   const [endDate, setEndDate] = useState("");
   const [symbol, setSymbol] = useState("BTIX");
 
-  const [priceUsd, setPriceUsd] = useState("10"); // Default 10 USD
+  const [priceUsd, setPriceUsd] = useState("10"); // Default 10 INR
   const [totalSupply, setTotalSupply] = useState("250");
   const [mintLimit, setMintLimit] = useState("2");
-  const [botTaxUsd, setBotTaxUsd] = useState("1"); // Default 1 USD
+  const [botTaxUsd, setBotTaxUsd] = useState("1"); // Default 1 INR
   const [deployNow, setDeployNow] = useState(true);
 
   if (!open) return null;
@@ -109,7 +109,7 @@ export function CreateEventForm({
     }
 
     if (!Number.isFinite(parsedPriceUsd) || parsedPriceUsd < 0) {
-      setError("Price in USD must be a non-negative number.");
+      setError("Price in INR must be a non-negative number.");
       return;
     }
 
@@ -313,7 +313,7 @@ export function CreateEventForm({
             <input
               value={priceUsd}
               onChange={(event) => setPriceUsd(event.target.value)}
-              placeholder="Price (USD)"
+              placeholder="Price (INR)"
               className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
             />
 
@@ -351,7 +351,7 @@ export function CreateEventForm({
             <input
               value={botTaxUsd}
               onChange={(event) => setBotTaxUsd(event.target.value)}
-              placeholder="Bot tax (USD)"
+              placeholder="Bot tax (INR)"
               className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
             />
 
