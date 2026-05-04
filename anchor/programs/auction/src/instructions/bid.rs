@@ -1,11 +1,11 @@
 use anchor_lang::prelude::*;
+use anchor_lang::system_program::{transfer, Transfer as SystemTransfer};
 use anchor_spl::{
     associated_token::AssociatedToken,
     token_interface::{transfer_checked, Mint, TokenAccount, TokenInterface, TransferChecked},
 };
 
 use super::error::AuctionError;
-use super::transfer_lamports;
 use crate::{Auction, Bids};
 
 #[derive(Accounts)]
@@ -78,10 +78,15 @@ impl<'info> Bid<'info> {
         }
 
         if self.auction.native_sol {
-            // Native SOL uses the auction PDA itself as escrow.
-            transfer_lamports(
-                &self.bidder.to_account_info(),
-                &self.auction.to_account_info(),
+            // Native SOL bids must use System Program transfer since bidder is not program-owned.
+            transfer(
+                CpiContext::new(
+                    self.system_program.to_account_info(),
+                    SystemTransfer {
+                        from: self.bidder.to_account_info(),
+                        to: self.auction.to_account_info(),
+                    },
+                ),
                 additional_amount,
             )
         } else {
