@@ -16,6 +16,7 @@ import type { DynamicWalletLike } from "@/lib/solana/candy-machine";
 import { fetchSolBalance } from "@/lib/solana/balance";
 import { WalletOverview } from "@/app/components/ui/wallet/WalletOverview";
 import { TicketGallery } from "@/app/components/ui/wallet/TicketGallery";
+import { AddFundsForm } from "@/app/components/ui/wallet/AddFundsForm";
 import { SendSolForm } from "@/app/components/ui/wallet/SendSolForm";
 import { TransactionHistory } from "@/app/components/ui/wallet/TransactionHistory";
 import { ArrowLeft, LogOut } from "lucide-react";
@@ -163,7 +164,7 @@ export default function WalletPage() {
     await switchWallet(embeddedWallet.id);
   };
 
-  const onTransferComplete = async () => {
+  const onWalletActivityComplete = async () => {
     if (!embeddedWallet?.address) return;
     const newBalance = await fetchSolBalance(embeddedWallet.address);
     setBalance(newBalance);
@@ -230,10 +231,16 @@ export default function WalletPage() {
                 isEmbeddedWalletActive={isEmbeddedWalletActive}
                 onActivateWallet={onActivateEmbeddedWallet}
               />
+              <AddFundsForm
+                dynamicUserId={user?.userId ?? ""}
+                walletAddress={walletAddress}
+                currentBalance={balance}
+                onFundingComplete={onWalletActivityComplete}
+              />
               <SendSolForm
                 wallet={activeEmbeddedWallet}
                 currentBalance={balance}
-                onTransferComplete={onTransferComplete}
+                onTransferComplete={onWalletActivityComplete}
               />
             </div>
             <div className="space-y-6">

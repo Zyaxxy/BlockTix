@@ -256,9 +256,9 @@ export function MintButton({
       <button
         onClick={mint}
         disabled={!canMint || isMinting}
-        className="rounded-full border border-emerald-300/50 bg-emerald-300/15 px-4 py-2 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-300/25 disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-pill bg-white px-4 py-2 text-xs font-semibold text-black shadow-[0_8px_22px_rgba(0,0,0,0.22)] transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {isMinting ? "Minting..." : "Mint Ticket"}
+        {isMinting ? "Minting..." : "Buy ticket"}
       </button>
       {error && <p className="text-xs text-rose-300">{error}</p>}
       {warning && <p className="text-xs text-amber-300">{warning}</p>}

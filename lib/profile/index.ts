@@ -60,11 +60,6 @@ const cacheProfile = (
 const isMissingColumnError = (errorMessage: string | undefined, column: string) =>
   Boolean(errorMessage?.toLowerCase().includes(column.toLowerCase()));
 
-export const buildAvatarUrl = (seed: string) => {
-  const safeSeed = encodeURIComponent(seed.trim() || "blocktix");
-  return `https://api.dicebear.com/9.x/shapes/svg?seed=${safeSeed}&backgroundType=gradientLinear&backgroundColor=f97316,f59e0b,1f2937`;
-};
-
 export const fetchUserProfile = async (uid: string): Promise<UserProfile | null> => {
   if (usersTableGuard.isTableMissing()) {
     return null;
@@ -152,7 +147,7 @@ export const persistUserProfile = async ({
   }
 
   const cleanName = name.trim();
-  const cleanAvatar = (avatarUrl ?? "").trim() || buildAvatarUrl(cleanName || uid);
+  const cleanAvatar = (avatarUrl ?? "").trim() || null;
 
   const basePayload = {
     uid,

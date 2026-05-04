@@ -80,7 +80,10 @@ export function CreateEventForm({
   };
 
   const createDeployAttemptId = () => {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    if (
+      typeof crypto !== "undefined" &&
+      typeof crypto.randomUUID === "function"
+    ) {
       return crypto.randomUUID();
     }
 
@@ -97,7 +100,6 @@ export function CreateEventForm({
     const parsedSupply = Number(totalSupply);
     const parsedPriceInr = Number(priceInr);
 
-
     if (!name.trim()) {
       setError("Event name is required.");
       return;
@@ -112,7 +114,6 @@ export function CreateEventForm({
       setError("Price in INR must be a non-negative number.");
       return;
     }
-
 
     setIsSubmitting(true);
 
@@ -145,7 +146,9 @@ export function CreateEventForm({
       let walletAdapter = null;
       for (const wallet of wallets) {
         walletAdapter = await getSolanaWalletAdapterFromDynamicWallet(
-          wallet as Parameters<typeof getSolanaWalletAdapterFromDynamicWallet>[0]
+          wallet as Parameters<
+            typeof getSolanaWalletAdapterFromDynamicWallet
+          >[0]
         );
 
         if (walletAdapter) {
@@ -154,7 +157,9 @@ export function CreateEventForm({
       }
 
       if (!walletAdapter) {
-        setError("Connect a Solana wallet with signing support to deploy on-chain.");
+        setError(
+          "Connect a Solana wallet with signing support to deploy on-chain."
+        );
         setIsSubmitting(false);
         setDeployStage("idle");
         return;
@@ -169,12 +174,15 @@ export function CreateEventForm({
         const metadataUri = await uploadTicketMetadataJson(umi, {
           name: `${name} Ticket`,
           symbol,
-          description: description.trim() || `${name} entry ticket minted on BlockTix.`,
+          description:
+            description.trim() || `${name} entry ticket minted on BlockTix.`,
           // Use the Supabase public URL if one was uploaded, otherwise fall back
           // to a deterministic placeholder so the metadata is always valid.
           imageUri: imageUrl.trim() || FALLBACK_IMAGE_URI,
           externalUrl:
-            typeof window !== "undefined" ? window.location.origin : "https://blocktix.app",
+            typeof window !== "undefined"
+              ? window.location.origin
+              : "https://blocktix.app",
           attributes: [
             { trait_type: "Event", value: name },
             { trait_type: "Venue", value: venue.trim() || "TBA" },
@@ -192,12 +200,14 @@ export function CreateEventForm({
           eventId: createResult.data.id,
           totalSupply: parsedSupply,
           priceLamports,
-          mintLimitPerWallet: Number(mintLimit) > 0 ? Number(mintLimit) : undefined,
+          mintLimitPerWallet:
+            Number(mintLimit) > 0 ? Number(mintLimit) : undefined,
           saleStartsAt: eventDate || undefined,
           saleEndsAt: endDate || undefined,
           botTaxLamports:
-            Number(botTaxInr) > 0 ? solToLamports(inrToSol(Number(botTaxInr))) : undefined,
-
+            Number(botTaxInr) > 0
+              ? solToLamports(inrToSol(Number(botTaxInr)))
+              : undefined,
         });
 
         createdEvent = {
@@ -249,159 +259,187 @@ export function CreateEventForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[90dvh] w-full max-w-2xl flex-col rounded-3xl border border-white/15 bg-[#090d13] p-6 text-white shadow-[0_30px_100px_rgba(0,0,0,0.65)]">
-        <div className="mb-5 flex items-center justify-between">
+      <div className="flex max-h-[calc(100vh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-3xl border border-white/15 bg-[#090d13] p-4 text-white shadow-[0_30px_100px_rgba(0,0,0,0.65)] supports-[height:100dvh]:max-h-[calc(100dvh-2rem)] sm:p-5">
+        <div className="mb-2 flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-white/50">Create Event</p>
-            <h3 className="mt-1 text-2xl font-semibold">Step {step} of 3</h3>
+            <p className="text-xs uppercase tracking-[0.2em] text-white/50">
+              Create Event
+            </p>
+            <h3 className="mt-1 text-xl font-semibold sm:text-2xl">
+              Step {step} of 3
+            </h3>
           </div>
           <button
             onClick={closeAndReset}
-            className="rounded-full border border-white/20 px-4 py-2 text-sm text-white/80 hover:bg-white/10"
+            className="rounded-full border border-white/20 px-3.5 py-2 text-sm text-white/80 hover:bg-white/10 sm:px-4"
           >
             Close
           </button>
         </div>
 
-        {step === 1 && (
-          <div className="grid gap-3 overflow-y-auto">
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Event name"
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
-            />
-            <input
-              value={venue}
-              onChange={(event) => setVenue(event.target.value)}
-              placeholder="Venue"
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
-            />
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Description"
-              className="min-h-24 rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
-            />
-            <div>
-              <label className="block text-sm text-white/80 mb-2">
-                Event Banner (optional)
-              </label>
-              <ImageUpload
-                value={imageUrl}
-                onChange={setImageUrl}
-                onUploadingChange={setIsUploading}
-                bucket="events"
-                maxSizeMB={5}
-                aspectRatio={110 / 28}
-                placeholder="Drop banner image or click to upload"
-                className="h-40"
-              />
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+            {step === 1 && (
+              <div className="grid gap-2">
+                <input
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Event name"
+                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
+                />
+                <input
+                  value={venue}
+                  onChange={(event) => setVenue(event.target.value)}
+                  placeholder="Venue"
+                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
+                />
+                <textarea
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder="Description"
+                  className="min-h-16 rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm sm:min-h-20"
+                />
+                <div>
+                  <label className="mb-2 block text-sm text-white/80">
+                    Event Banner (optional)
+                  </label>
+                  <ImageUpload
+                    value={imageUrl}
+                    onChange={setImageUrl}
+                    onUploadingChange={setIsUploading}
+                    bucket="events"
+                    maxSizeMB={5}
+                    aspectRatio={100 / 40}
+                    placeholder="Drop banner image or click to upload"
+                    className=""
+                    theme="dark"
+                    compact
+                  />
+                </div>
+              </div>
+            )}
+
+            {step === 2 && (
+              <div className="grid gap-3 md:grid-cols-2">
+                <input
+                  value={symbol}
+                  onChange={(event) =>
+                    setSymbol(event.target.value.toUpperCase())
+                  }
+                  placeholder="Symbol"
+                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
+                  maxLength={10}
+                />
+                <input
+                  value={priceInr}
+                  onChange={(event) => setPriceInr(event.target.value)}
+                  placeholder="Price (INR)"
+                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
+                />
+
+                <input
+                  value={totalSupply}
+                  onChange={(event) => setTotalSupply(event.target.value)}
+                  placeholder="Total supply"
+                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
+                />
+                <input
+                  value={mintLimit}
+                  onChange={(event) => setMintLimit(event.target.value)}
+                  placeholder="Mint limit per wallet"
+                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
+                />
+              </div>
+            )}
+
+            {step === 3 && (
+              <div className="grid gap-3">
+                <label className="text-sm text-white/80">
+                  Sale start (optional)
+                </label>
+                <input
+                  type="datetime-local"
+                  value={eventDate}
+                  onChange={(event) => setEventDate(event.target.value)}
+                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
+                />
+                <label className="text-sm text-white/80">
+                  Sale end (optional)
+                </label>
+                <input
+                  type="datetime-local"
+                  value={endDate}
+                  onChange={(event) => setEndDate(event.target.value)}
+                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
+                />
+                <input
+                  value={botTaxInr}
+                  onChange={(event) => setBotTaxInr(event.target.value)}
+                  placeholder="Bot tax (INR)"
+                  className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
+                />
+
+                <label className="inline-flex items-center gap-2 text-sm text-white/80">
+                  <input
+                    type="checkbox"
+                    checked={deployNow}
+                    onChange={(event) => setDeployNow(event.target.checked)}
+                  />
+                  Deploy on-chain now (Candy Machine + collection)
+                </label>
+              </div>
+            )}
+
+            <div className="mt-4 space-y-2">
+              {error && <p className="text-sm text-rose-300">{error}</p>}
+              {warning && <p className="text-sm text-amber-300">{warning}</p>}
+              {isSubmitting && deployStage !== "idle" && (
+                <p className="text-sm text-cyan-200">
+                  {deployStageMessage[deployStage]}
+                </p>
+              )}
+              {deployAttemptId && (
+                <p className="text-xs text-white/40">
+                  Deploy Attempt ID: {deployAttemptId}
+                </p>
+              )}
             </div>
           </div>
-        )}
 
-        {step === 2 && (
-          <div className="grid gap-3 overflow-y-auto md:grid-cols-2">
-            <input
-              value={symbol}
-              onChange={(event) => setSymbol(event.target.value.toUpperCase())}
-              placeholder="Symbol"
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
-              maxLength={10}
-            />
-            <input
-              value={priceInr}
-              onChange={(event) => setPriceInr(event.target.value)}
-              placeholder="Price (INR)"
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
-            />
-
-            <input
-              value={totalSupply}
-              onChange={(event) => setTotalSupply(event.target.value)}
-              placeholder="Total supply"
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
-            />
-            <input
-              value={mintLimit}
-              onChange={(event) => setMintLimit(event.target.value)}
-              placeholder="Mint limit per wallet"
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
-            />
-          </div>
-        )}
-
-        {step === 3 && (
-          <div className="grid gap-3 overflow-y-auto">
-            <label className="text-sm text-white/80">Sale start (optional)</label>
-            <input
-              type="datetime-local"
-              value={eventDate}
-              onChange={(event) => setEventDate(event.target.value)}
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
-            />
-            <label className="text-sm text-white/80">Sale end (optional)</label>
-            <input
-              type="datetime-local"
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
-            />
-            <input
-              value={botTaxInr}
-              onChange={(event) => setBotTaxInr(event.target.value)}
-              placeholder="Bot tax (INR)"
-              className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-sm"
-            />
-
-            <label className="inline-flex items-center gap-2 text-sm text-white/80">
-              <input
-                type="checkbox"
-                checked={deployNow}
-                onChange={(event) => setDeployNow(event.target.checked)}
-              />
-              Deploy on-chain now (Candy Machine + collection)
-            </label>
-          </div>
-        )}
-
-        <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
-          {error && <p className="text-sm text-rose-300">{error}</p>}
-          {warning && <p className="text-sm text-amber-300">{warning}</p>}
-          {isSubmitting && deployStage !== "idle" && (
-            <p className="text-sm text-cyan-200">{deployStageMessage[deployStage]}</p>
-          )}
-          {deployAttemptId && (
-            <p className="text-xs text-white/40">Deploy Attempt ID: {deployAttemptId}</p>
-          )}
-        </div>
-
-        <div className="mt-auto flex items-center justify-between border-t border-white/10 pt-4">
-          <button
-            onClick={() => setStep((current) => (current > 1 ? ((current - 1) as Step) : current))}
-            disabled={step === 1 || isSubmitting}
-            className="rounded-full border border-white/20 px-5 py-2 text-sm disabled:opacity-50"
-          >
-            Back
-          </button>
-
-          {step < 3 ? (
+          <div className="mt-4 flex shrink-0 items-center justify-between border-t border-white/10 pt-4">
             <button
-              onClick={() => setStep((current) => (current < 3 ? ((current + 1) as Step) : current))}
-              className="rounded-full bg-white px-6 py-2 text-sm font-semibold text-black"
+              onClick={() =>
+                setStep((current) =>
+                  current > 1 ? ((current - 1) as Step) : current
+                )
+              }
+              disabled={step === 1 || isSubmitting}
+              className="rounded-full border border-white/20 px-5 py-2 text-sm disabled:opacity-50"
             >
-              Next
+              Back
             </button>
-          ) : (
-            <button
-              onClick={submit}
-              disabled={isSubmitting || isUploading}
-              className="rounded-full bg-emerald-300 px-6 py-2 text-sm font-semibold text-black disabled:opacity-70"
-            >
-              {isSubmitting ? "Creating..." : "Create Event"}
-            </button>
-          )}
+
+            {step < 3 ? (
+              <button
+                onClick={() =>
+                  setStep((current) =>
+                    current < 3 ? ((current + 1) as Step) : current
+                  )
+                }
+                className="rounded-full bg-white px-6 py-2 text-sm font-semibold text-black"
+              >
+                Next
+              </button>
+            ) : (
+              <button
+                onClick={submit}
+                disabled={isSubmitting || isUploading}
+                className="rounded-full bg-emerald-300 px-6 py-2 text-sm font-semibold text-black disabled:opacity-70"
+              >
+                {isSubmitting ? "Creating..." : "Create Event"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

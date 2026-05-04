@@ -9,7 +9,7 @@ import {
   useIsLoggedIn,
   useUserWallets,
 } from "@dynamic-labs/sdk-react-core";
-import { Calendar, ChevronLeft, MapPin, Ticket, Wallet } from "lucide-react";
+import { Calendar, ChevronLeft, ExternalLink, MapPin, Ticket } from "lucide-react";
 import { MintButton } from "@/app/components/ui/events/MintButton";
 import { fetchEventById, type OrganizerEvent } from "@/lib/events";
 import { fetchUserProfile } from "@/lib/profile";
@@ -45,6 +45,26 @@ const formatDate = (value: string | null) => {
   });
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const parseMetadataAttributes = (metadata: Record<string, unknown>) => {
+  if (!Array.isArray(metadata.attributes)) return [];
+
+  return metadata.attributes
+    .filter(isRecord)
+    .map((attribute) => ({
+      label:
+        typeof attribute.trait_type === "string" && attribute.trait_type.trim().length > 0
+          ? attribute.trait_type
+          : "Attribute",
+      value:
+        typeof attribute.value === "string" || typeof attribute.value === "number"
+          ? String(attribute.value)
+          : "—",
+    }));
+};
+
 export default function EventDetailsPage() {
   const params = useParams<{ eventId: string }>();
   const router = useRouter();
@@ -56,6 +76,9 @@ export default function EventDetailsPage() {
   const [event, setEvent] = useState<OrganizerEvent | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [viewerRole, setViewerRole] = useState<"organizer" | "user" | null>(null);
+  const [metadata, setMetadata] = useState<Record<string, unknown> | null>(null);
+  const [metadataLoading, setMetadataLoading] = useState(false);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
 
   const eventId = typeof params.eventId === "string" ? params.eventId : "";
 
@@ -74,8 +97,6 @@ export default function EventDetailsPage() {
     if (!uid || !eventId) return;
 
     let active = true;
-    setReady(false);
-    setError(null);
 
     const load = async () => {
       try {
@@ -115,6 +136,55 @@ export default function EventDetailsPage() {
     };
   }, [eventId, isLoggedIn, router, user?.userId]);
 
+  useEffect(() => {
+    if (!event) return;
+
+    let active = true;
+
+    const loadMetadata = async () => {
+      setMetadataLoading(true);
+      setMetadataError(null);
+      setMetadata(null);
+
+      const metadataEndpoints = [event.metadataUri?.trim(), `/api/events/${event.id}/metadata`].filter(
+        (value): value is string => Boolean(value)
+      );
+
+      for (const endpoint of metadataEndpoints) {
+        try {
+          const response = await fetch(endpoint, { cache: "no-store" });
+          if (!response.ok) {
+            continue;
+          }
+
+          const payload = (await response.json()) as unknown;
+          if (!isRecord(payload)) {
+            continue;
+          }
+
+          if (!active) return;
+
+          setMetadata(payload);
+          setMetadataLoading(false);
+          return;
+        } catch {
+          continue;
+        }
+      }
+
+      if (!active) return;
+
+      setMetadataError("Metadata is unavailable right now.");
+      setMetadataLoading(false);
+    };
+
+    loadMetadata();
+
+    return () => {
+      active = false;
+    };
+  }, [event]);
+
   const backHref = viewerRole === "organizer" ? "/organizer" : "/user";
 
   if (!ready) {
@@ -151,6 +221,23 @@ export default function EventDetailsPage() {
   const bannerImage = event.imageUrl || FALLBACK_EVENT_IMAGE;
   const soldPercent =
     event.totalSupply > 0 ? Math.round((event.mintedCount / event.totalSupply) * 100) : 0;
+  const metadataAttributes = metadata ? parseMetadataAttributes(metadata) : [];
+  const metadataName =
+    metadata && typeof metadata.name === "string" && metadata.name.trim().length > 0
+      ? metadata.name
+      : `${event.name} Ticket`;
+  const metadataDescription =
+    metadata && typeof metadata.description === "string" && metadata.description.trim().length > 0
+      ? metadata.description
+      : event.description || "Event details will be announced soon.";
+  const metadataImage =
+    metadata && typeof metadata.image === "string" && metadata.image.trim().length > 0
+      ? metadata.image
+      : bannerImage;
+  const metadataExternalUrl =
+    metadata && typeof metadata.external_url === "string" && metadata.external_url.trim().length > 0
+      ? metadata.external_url
+      : null;
 
   return (
     <div className="min-h-screen bg-[#07090d] text-white">
@@ -206,7 +293,7 @@ export default function EventDetailsPage() {
           >
             <p className="text-xs uppercase tracking-[0.18em] text-white/55">About Event</p>
             <p className="mt-3 text-sm leading-7 text-white/80">
-              {event.description || "Event details will be announced soon."}
+              {metadataDescription}
             </p>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
@@ -251,7 +338,7 @@ export default function EventDetailsPage() {
                 </div>
                 <div className="flex items-start justify-between gap-3 rounded-2xl border border-white/10 bg-black/25 p-4">
                   <div>
-                    <p className="text-sm font-medium">Mint Ticket</p>
+                    <p className="text-sm font-medium">Buy Ticket</p>
                     <p className="mt-1 text-xs text-white/60">Candy Machine powered mint</p>
                   </div>
                   <MintButton
@@ -276,18 +363,61 @@ export default function EventDetailsPage() {
 
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4">
               <p className="text-xs uppercase tracking-[0.14em] text-white/55">Metadata</p>
-              <a
-                href={`/api/events/${event.id}/metadata`}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 inline-flex items-center gap-2 text-sm text-emerald-200 hover:text-emerald-100"
-              >
-                <Wallet className="h-4 w-4" />
-                Open metadata JSON
-              </a>
-              <p className="mt-2 text-xs text-white/55">
-                URI: /api/events/{event.id}/metadata
-              </p>
+              {metadataLoading && <p className="mt-2 text-sm text-white/70">Loading metadata...</p>}
+              {!metadataLoading && metadataError && (
+                <p className="mt-2 text-sm text-amber-200">{metadataError}</p>
+              )}
+
+              {!metadataLoading && !metadataError && metadata && (
+                <div className="mt-3 space-y-3">
+                  <div className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
+                    <div
+                      aria-hidden="true"
+                      className="h-24 w-full bg-cover bg-center"
+                      style={{ backgroundImage: `url(${metadataImage})` }}
+                    />
+                    <div className="p-3">
+                      <p className="text-sm font-semibold text-white">{metadataName}</p>
+                      <p className="mt-1 line-clamp-2 text-xs text-white/70">{metadataDescription}</p>
+                    </div>
+                  </div>
+
+                  {metadataAttributes.length > 0 && (
+                    <div className="grid gap-2">
+                      {metadataAttributes.map((attribute) => (
+                        <div
+                          key={`${attribute.label}-${attribute.value}`}
+                          className="flex items-center justify-between rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs"
+                        >
+                          <span className="uppercase tracking-[0.12em] text-white/55">{attribute.label}</span>
+                          <span className="max-w-[58%] truncate text-right text-white/85">{attribute.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <a
+                    href={event.metadataUri || `/api/events/${event.id}/metadata`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-emerald-200 hover:text-emerald-100"
+                  >
+                    View source JSON
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                  {metadataExternalUrl && (
+                    <a
+                      href={metadataExternalUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 text-xs text-white/70 hover:text-white/90"
+                    >
+                      External URL
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 p-4">

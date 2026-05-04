@@ -10,7 +10,6 @@ import {
   useUserWallets,
 } from "@dynamic-labs/sdk-react-core";
 import {
-  buildAvatarUrl,
   fetchUserProfile,
   type UserProfile,
 } from "@/lib/profile";
@@ -23,17 +22,14 @@ import { CreateEventForm } from "@/app/components/ui/events/CreateEventForm";
 import {
   Calendar,
   CheckCircle2,
-  Clock,
   DollarSign,
   Eye,
   LogOut,
-  MoreHorizontal,
   Package,
   Plus,
   Ticket,
   TrendingUp,
-  Users,
-  X,
+  User,
 } from "lucide-react";
 
 type EventFilter = "all" | "live" | "draft" | "ended";
@@ -101,18 +97,7 @@ export default function OrganizerDashboard() {
   }, [isLoggedIn, user, router]);
 
   const displayName = profile?.name ?? "Organizer";
-  const initials = useMemo(
-    () =>
-      displayName
-        .split(" ")
-        .filter(Boolean)
-        .map((word) => word[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2),
-    [displayName]
-  );
-  const avatar = profile?.avatarUrl ?? buildAvatarUrl(displayName || user?.userId || "blocktix");
+  const avatar = profile?.avatarUrl?.trim() || null;
 
   const filteredEvents = useMemo(() => {
     if (activeFilter === "all") return events;
@@ -170,14 +155,17 @@ export default function OrganizerDashboard() {
         <header className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <div className="relative h-14 w-14 overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-orange-500/20 to-amber-500/10">
-              <div
-                aria-hidden="true"
-                className="h-full w-full bg-cover bg-center"
-                style={{ backgroundImage: `url(${avatar})` }}
-              />
-              <span className="absolute inset-0 flex items-center justify-center text-lg font-semibold text-white">
-                {initials}
-              </span>
+              {avatar ? (
+                <div
+                  aria-hidden="true"
+                  className="h-full w-full bg-cover bg-center"
+                  style={{ backgroundImage: `url(${avatar})` }}
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <User className="h-6 w-6 text-white/55" />
+                </div>
+              )}
             </div>
             <div>
               <p className="text-xs uppercase tracking-widest text-white/40">Event Launchpad</p>
